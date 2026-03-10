@@ -1,0 +1,217 @@
+.vapi-widget-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.vapi-floating-btn {
+  background-color: #003366;
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 15px 25px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vapi-floating-btn:hover {
+  background-color: #0055aa;
+  transform: scale(1.05);
+}
+
+.vapi-chat-window {
+  width: 350px;
+  height: 500px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.vapi-chat-header {
+  background-color: #003366;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vapi-chat-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.vapi-chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-message {
+  text-align: center;
+  color: #888;
+  margin-top: 50%;
+  transform: translateY(-50%);
+}
+
+.vapi-message {
+  display: flex;
+  margin-bottom: 5px;
+}
+
+.message-bubble {
+  padding: 10px 14px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  display: inline-block;
+}
+
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  width: 100%;
+}
+
+.message-sender {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.vapi-message.user {
+  justify-content: flex-end;
+}
+
+.vapi-message.user .message-wrapper {
+  align-items: flex-end;
+}
+
+.vapi-message.user .message-bubble {
+  background-color: #003366;
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+.vapi-message.assistant {
+  justify-content: flex-start;
+}
+
+.vapi-message.assistant .message-wrapper {
+  align-items: flex-start;
+}
+
+.vapi-message.assistant .message-bubble {
+  background-color: #e5e5ea;
+  color: black;
+  border-bottom-left-radius: 2px;
+}
+
+.vapi-message.system {
+  justify-content: center;
+}
+
+.vapi-message.system .message-wrapper {
+  align-items: center;
+}
+
+.vapi-message.system .message-bubble {
+  background-color: transparent;
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+  padding: 5px;
+}
+
+.vapi-chat-controls {
+  padding: 15px;
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voice-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.voice-btn.active {
+  background-color: #dc3545;
+  animation: pulse 2s infinite;
+}
+
+.voice-btn:hover {
+  opacity: 0.9;
+}
+
+.text-form {
+  display: flex;
+  gap: 8px;
+}
+
+.text-form input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+}
+
+.text-form input:focus {
+  border-color: #003366;
+}
+
+.text-form button {
+  background-color: #003366;
+  color: white;
+  border: none;
+  padding: 0 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.text-form button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}

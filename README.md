@@ -12,8 +12,6 @@ Firecrawl (Scraper)
     ↓
 india.gov.in HTML → Markdown
     ↓
-Gemini 1.5 Flash (Structurer)
-    ↓
 Structured JSON (scheme_name, category, eligibility, benefits, link)
     ↓
 ChromaDB (Vector Store, sentence-transformers embeddings)

@@ -15,3 +15,4 @@ Step 29: docs: clarifying API key setup instructions at 2026-03-11 07:21:49
 Step 32: fix: resolved minor latency issue in LangGraph Shield node at 2026-03-11 07:25:07
 Step 35: refactor: optimized ChromaDB similarity threshold for better matching at 2026-03-11 07:29:09
 Step 38: chore: cleaned up Firecrawl raw HTML to Markdown conversion logic at 2026-03-11 07:32:16
+Step 41: refactor: modularized agentic loop for better observability at 2026-03-11 07:35:52

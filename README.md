@@ -118,3 +118,4 @@ chakra/
 > **Without keys:** The app still works using 10 seeded schemes from india.gov.in.
 <!-- Internal Dev Sync: 2026-03-11 06:38:09 -->
 <!-- Internal Dev Sync: 2026-03-11 06:41:32 -->
+<!-- Internal Dev Sync: 2026-03-11 06:44:50 -->

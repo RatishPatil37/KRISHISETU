@@ -17,3 +17,4 @@ Step 35: refactor: optimized ChromaDB similarity threshold for better matching a
 Step 38: chore: cleaned up Firecrawl raw HTML to Markdown conversion logic at 2026-03-11 07:32:16
 Step 41: refactor: modularized agentic loop for better observability at 2026-03-11 07:35:52
 Step 44: refactor: modularized agentic loop for better observability at 2026-03-11 07:39:54
+Step 47: docs: clarifying API key setup instructions at 2026-03-11 07:43:03

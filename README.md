@@ -116,3 +116,4 @@ chakra/
 | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) — free |
 
 > **Without keys:** The app still works using 10 seeded schemes from india.gov.in.
+<!-- Internal Dev Sync: 2026-03-11 06:38:09 -->

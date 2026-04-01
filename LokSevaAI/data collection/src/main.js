@@ -5,14 +5,12 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.js';
 // ── Supabase client ────────────────────────────────────────
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ── LokSevaAI MERN frontend URL ────────────────────────────
-// In development, redirect to backend on 5000 (which serves the React app).
-// In production, redirect to backend on 5000/app.
-const LOKSEVA_URL = import.meta.env.DEV
-  ? 'http://localhost:5000'
-  : 'http://localhost:5000/app';
-// LP URL — served via npx serve at port 8080
-const LP_URL = 'http://localhost:8080';
+// ── KrishiSetu MERN backend URL (for API calls & auth callback) ────
+const KRISHISETU_URL = 'http://localhost:5000';
+// ── React app URL — always at /app on the backend ────────────────
+const KRISHISETU_APP_URL = 'http://localhost:5000/app';
+// ── Landing page URL ───────────────────────────────────────────────
+const LP_URL = 'http://localhost:5000';
 
 // ── Auth guard ─────────────────────────────────────────────
 // Handles two cases:
@@ -23,6 +21,15 @@ let currentUser = null;
 
 function guardAuth() {
   return new Promise(async (resolve) => {
+    // --- DEVELOPMENT MOCK BYPASS ---
+    if (window.location.hash.includes('mock_bypass=true')) {
+      currentUser = { email: 'farmer@krishisetu.com', id: 'mock-auth-id' };
+      history.replaceState(null, '', window.location.pathname);
+      resolve(true);
+      return;
+    }
+    
+    /* --- PRODUCTION SUPABASE AUTH ---
     // First, check if there's already a session
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -58,6 +65,7 @@ function guardAuth() {
       window.location.href = LP_URL;
       resolve(false);
     }
+    */
   });
 }
 
@@ -343,12 +351,22 @@ function activateCell(index) {
   }
 }
 
-// ── Submit to Supabase ─────────────────────────────────────
+// ── Submit to Supabase & Backend ─────────────────────────────────────
 async function submitToSupabase() {
-  console.log('Submitting to Supabase:', formData);
+  console.log('Submitting to mock store:', formData);
 
+  // --- DEVELOPMENT MOCK BYPASS ---
+  // Store form data in local storage so the dashboard can access it
+  localStorage.setItem('krishisetu_mock_user', JSON.stringify({
+    ...formData,
+    email: currentUser?.email || 'farmer@krishisetu.com',
+    uid: currentUser?.id || 'mock-id'
+  }));
+
+  /* --- PRODUCTION SUPABASE & MONGODB ---
   try {
     const uid = currentUser?.id;
+    const email = currentUser?.email;
     const { error } = await supabase
       .from('profiles')
       .upsert([
@@ -366,9 +384,29 @@ async function submitToSupabase() {
     if (error) {
       console.error('Supabase error:', error);
     }
+
+    // Pass data to MongoDB via Express Backend so WhatsApp sync works
+    // Also stores email so MongoDB check-email can find returning users
+    if (uid) {
+       await fetch(`${KRISHISETU_URL}/api/users/upsert`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+               uid: uid,
+               email: email,
+               full_name: formData.full_name,
+               phone: formData.phone,
+               profession: formData.profession,
+               income_bracket: formData.income_bracket,
+               domicile: formData.domicile
+           })
+       });
+    }
+
   } catch (err) {
     console.error('Network error:', err);
   }
+  */
 
   showSuccess();
 }
@@ -388,8 +426,13 @@ async function showSuccess() {
   cellsPage.classList.add('hidden');
   successPage.classList.remove('hidden');
 
-  // Wait briefly so Supabase upsert is committed, then redirect
+  // Wait briefly, then redirect
   setTimeout(async () => {
+    // --- DEVELOPMENT MOCK BYPASS ---
+    // Instead of tokens, we just redirect directly to the app bypassing the standard callback
+    window.location.href = `${KRISHISETU_APP_URL}/auth/callback?mock_bypass=true&from=datacollection`;
+
+    /* --- PRODUCTION SUPABASE ---
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
@@ -401,13 +444,14 @@ async function showSuccess() {
           `token_type=bearer`,
           `type=signup`,
         ].join('&');
-        window.location.href = `${LOKSEVA_URL}/auth/callback?from=datacollection#${hash}`;
+        window.location.href = `${KRISHISETU_URL}/app/auth/callback?from=datacollection#${hash}`;
       } else {
-        window.location.href = LOKSEVA_URL;
+        window.location.href = KRISHISETU_APP_URL;
       }
     } catch {
-      window.location.href = LOKSEVA_URL;
+      window.location.href = KRISHISETU_APP_URL;
     }
+    */
   }, 2200);
 }
 
@@ -422,10 +466,49 @@ function hideError(el) {
 }
 
 // ── Boot ───────────────────────────────────────────────────
-// Guard auth first, then render and pre-fill name from Google
+// Guard auth first, then check if user already exists in MongoDB.
+// If yes → redirect straight to the app (skip the form).
+// If no  → render the form (new user).
 (async () => {
   const ok = await guardAuth();
   if (!ok) return;  // redirected to LP
+
+  // --- DEVELOPMENT MOCK BYPASS ---
+  // Completely skip checking if the user already submitted their data since there is no DB
+  
+  /* --- PRODUCTION MONGODB CHECK ---
+  // Check DB: has this user already submitted their data?
+  try {
+    const email = currentUser?.email;
+    if (email) {
+      const res = await fetch(
+        `${KRISHISETU_URL}/api/users/check-email?email=${encodeURIComponent(email)}`
+      );
+      if (res.ok) {
+        const { exists } = await res.json();
+        if (exists) {
+          // Returning user — skip the form, pass tokens to React app via /auth/callback
+          console.log('Returning user detected (MongoDB) — skipping data collection.');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            const hash = [
+              `access_token=${session.access_token}`,
+              `refresh_token=${session.refresh_token}`,
+              `token_type=bearer`,
+              `type=recovery`,
+            ].join('&');
+            window.location.href = `${KRISHISETU_URL}/app/auth/callback#${hash}`;
+          } else {
+            window.location.href = KRISHISETU_APP_URL;
+          }
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('DB check failed, showing form anyway:', err);
+  }
+  */
 
   render();
 

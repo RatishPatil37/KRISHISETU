@@ -32,7 +32,7 @@ mongoose.connect(
 
 // API Routes Status Check (moved from root to /api)
 app.get('/api', (req, res) => {
-  res.json({ message: 'LOKSEVA Backend API' });
+  res.json({ message: 'KRISHISETU Backend API' });
 });
 
 // Import routes
@@ -43,12 +43,17 @@ app.use('/api/schemes', schemeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ocr', ocrRoutes);
 
-app.use(express.static(path.join(__dirname, '../../lp')));
+app.use(express.static(path.join(__dirname, '../../LokSevaAI/LandingPage')));
 
 app.use('/app', express.static(path.join(__dirname, '../frontend/build')));
 
-// Handle auth callback - serve the React app so React Router can handle /auth/callback
+// Handle auth callback - serve the React app so React Router can handle it
+// Both URLs serve the same build/index.html (basename="/app" handles the rest)
 app.get('/auth/callback', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+});
+
+app.get('/app/auth/callback', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 

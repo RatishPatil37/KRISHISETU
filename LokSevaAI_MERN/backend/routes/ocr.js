@@ -21,20 +21,20 @@ router.post('/analyze-image', upload.single('document'), async (req, res) => {
     }
 
     const filePath = req.file.path;
-    
+
     // Read the file natively to detect the actual format (robust method)
     const fileBuffer = fs.readFileSync(filePath);
-    
+
     // Combine magic bytes with explicit mimetype and extension check to robustly detect PDFs
-    const hasPdfMagic = fileBuffer.length > 4 && 
-                        fileBuffer[0] === 0x25 && 
-                        fileBuffer[1] === 0x50 && 
-                        fileBuffer[2] === 0x44 && 
-                        fileBuffer[3] === 0x46;
-    
-    const isPDF = hasPdfMagic || 
-                  req.file.mimetype === 'application/pdf' || 
-                  req.file.originalname.toLowerCase().endsWith('.pdf');
+    const hasPdfMagic = fileBuffer.length > 4 &&
+        fileBuffer[0] === 0x25 &&
+        fileBuffer[1] === 0x50 &&
+        fileBuffer[2] === 0x44 &&
+        fileBuffer[3] === 0x46;
+
+    const isPDF = hasPdfMagic ||
+        req.file.mimetype === 'application/pdf' ||
+        req.file.originalname.toLowerCase().endsWith('.pdf');
 
     console.log("File uploaded:", req.file.originalname, "Detected as PDF:", isPDF);
 
@@ -95,13 +95,15 @@ router.post('/analyze-image', upload.single('document'), async (req, res) => {
         // Summarize with Gemini
         try {
             let apiKey = process.env.GEMINI_API_KEY;
-            
+
             if (!apiKey) {
-                 return res.json({ success: true, insights: "Text extracted successfully, but Gemini API Key is missing for insights:\n\n" + extractedText });
+                return res.json({
+                    success: true,
+                    insights: "⚠️ Gemini API Key not set.\n\n📄 Raw Extracted Text:\n\n" + extractedText
+                });
             }
 
             const genAI = new GoogleGenerativeAI(apiKey);
-            // using gemini-1.5-flash which is universally supported by the legacy v1beta endpoint
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const prompt = `Analyze the following text extracted from a government document (PDF/Image OCR). 
@@ -122,8 +124,10 @@ ${extractedText}
 
             res.json({ success: true, insights });
         } catch (genAiError) {
-            console.error("Gemini AI Error:", genAiError);
-            res.status(500).json({ success: false, error: 'Failed to generate insights from text.' });
+            // Gemini failed (expired key, quota, network) — still return the raw OCR text so user sees something
+            console.error("Gemini AI Error (falling back to raw OCR text):", genAiError?.message || genAiError);
+            const fallbackMsg = `⚠️ AI Summary unavailable (Gemini API error: ${genAiError?.message || 'Unknown error'}).\n\nTo get AI summaries, update GEMINI_API_KEY in backend/.env with a valid key from https://aistudio.google.com\n\n──────────────────────────\n📄 Raw Extracted Text (OCR):\n──────────────────────────\n\n${extractedText}`;
+            return res.json({ success: true, insights: fallbackMsg });
         }
     } catch (processError) {
         console.error("Document Process Error:", processError);

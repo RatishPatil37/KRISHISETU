@@ -4,10 +4,12 @@ import './App.css';
 
 import { useNavigate, Routes, Route } from "react-router-dom";
 import { useAuth } from './AuthContext';
+import { supabase } from './supabase';
 import Profile from "./Pages/Profile";
 import VapiChatAssistant from './components/VapiChatAssistant';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, Sun, Moon, MessageCircle, Smartphone } from 'lucide-react';
+import { AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, Sun, Moon, MessageCircle, Smartphone, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 // Language Dictionary for Dynamic Translation
 const DICTIONARY = {
@@ -31,7 +33,9 @@ const DICTIONARY = {
     logout: "Logout",
     login: "Login with Google",
     language_header: "LANGUAGE",
-    filters_header: "SCHEME FILTERS"
+    filters_header: "SCHEME FILTERS",
+    tab_taaza: "Taaza Khabar",
+    taaza_desc: "Latest notifications and news regarding government schemes in India."
   },
   'हिंदी': {
     title: "अपना सरकारी लाभ खोजें",
@@ -53,7 +57,9 @@ const DICTIONARY = {
     logout: "लॉग आउट",
     login: "Google से लॉगिन करें",
     language_header: "भाषा",
-    filters_header: "फिल्टर्स"
+    filters_header: "फिल्टर्स",
+    tab_taaza: "ताज़ा ख़बर",
+    taaza_desc: "भारत में सरकारी योजनाओं के बारे में नवीनतम सूचनाएं और समाचार।"
   },
   'मराठी': {
     title: "तुमचा सरकारी लाभ शोधा",
@@ -75,7 +81,9 @@ const DICTIONARY = {
     logout: "लॉगआउट",
     login: "Google सह लॉग इन करा",
     language_header: "भाषा",
-    filters_header: "फिल्टर्स"
+    filters_header: "फिल्टर्स",
+    tab_taaza: "ताजी बातमी",
+    taaza_desc: "भारतातील सरकारी योजनांबद्दलच्या नवीनतम सूचना आणि बातम्या."
   },
   'தமிழ்': {
     title: "உங்கள் அரசு நன்மையை கண்டறியவும்",
@@ -97,7 +105,9 @@ const DICTIONARY = {
     logout: "வெளியேறு",
     login: "Google உடன் உள்நுழைக",
     language_header: "மொழி",
-    filters_header: "திட்ட வடிப்பான்கள்"
+    filters_header: "திட்ட வடிப்பான்கள்",
+    tab_taaza: "சமீபத்திய செய்திகள்",
+    taaza_desc: "இந்தியாவில் உள்ள அரசு திட்டங்கள் குறித்த சமீபத்திய அறிவிப்புகள் மற்றும் செய்திகள்."
   },
   'తెలుగు': {
     title: "మీ ప్రభుత్వ ప్రయోజనాన్ని కనుగొనండి",
@@ -119,50 +129,123 @@ const DICTIONARY = {
     logout: "లాగ్అవుట్",
     login: "Google తో లాగిన్ చేయండి",
     language_header: "భాష",
-    filters_header: "ఫిల్టర్లు"
+    filters_header: "ఫిల్టర్లు",
+    tab_taaza: "తాజా వార్తలు",
+    taaza_desc: "భారతదేశంలో ప్రభుత్వ పథకాలకు సంబంధించిన తాజా నోటిఫికేషన్‌లు మరియు వార్తలు."
   }
 };
 
 // Auth Callback Component
 function AuthCallback() {
-  const navigate = useNavigate();
-  const { user, loading, checkOnboardedStatus } = useAuth();
+  const { checkOnboardedStatus } = useAuth();
+  const [status, setStatus] = useState("Completing authentication...");
+  const hasRun = React.useRef(false);  // ← prevent re-runs when AuthContext re-renders
+
+  const APP_URL = 'http://localhost:5000/app';
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      if (!loading && user) {
+    // Guard: only run once even if deps change due to context re-renders
+    if (hasRun.current) return;
+    hasRun.current = true;
+
+    let cancelled = false;
+
+    const handleCallback = async () => {
+      try {
         const urlParams = new URLSearchParams(window.location.search);
+        const isMockBypass = urlParams.get('mock_bypass') === 'true';
         const fromDataCollection = urlParams.get('from') === 'datacollection';
 
-        if (fromDataCollection) {
-          // Coming from data collection, user is onboarded
-          navigate('/');
+        // --- DEVELOPMENT MOCK BYPASS ---
+        if (isMockBypass) {
+          setStatus("Mock Bypass: Setting up your session...");
+          // We set a flag in localStorage that AuthContext will pick up
+          localStorage.setItem('krishisetu_mock_logged_in', 'true');
+
+          if (fromDataCollection) {
+            window.location.href = APP_URL;
+            return;
+          }
+          window.location.href = APP_URL;
           return;
         }
 
-        const isOnboarded = await checkOnboardedStatus(user.id);
+        /* --- PRODUCTION SUPABASE AUTH ---
+        // Step 1: Extract tokens from URL hash
+        const rawHash = window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(rawHash);
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+
+        let resolvedUser = null;
+
+        if (access_token && refresh_token) {
+          // Step 2: Explicitly set session at this origin (5000)
+          setStatus("Setting up your session...");
+          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (error) throw error;
+          resolvedUser = data?.user ?? null;
+          // Clean hash from URL without a reload
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } else {
+          // Fallback: session might already exist
+          const { data } = await supabase.auth.getSession();
+          resolvedUser = data?.session?.user ?? null;
+        }
+
+        if (cancelled) return;
+
+        if (!resolvedUser) {
+          window.location.href = 'http://localhost:5000';
+          return;
+        }
+
+        // Step 3: Route based on onboarding state
+        if (fromDataCollection) {
+          window.location.href = APP_URL;
+          return;
+        }
+
+        setStatus("Checking your profile...");
+        const isOnboarded = await checkOnboardedStatus(resolvedUser.email);
+        if (cancelled) return;
+
         if (!isOnboarded) {
           window.location.href = 'http://localhost:5173';
           return;
         }
-        navigate('/');
+
+        window.location.href = APP_URL;
+        */
+
+      } catch (err) {
+        console.error('AuthCallback error:', err);
+        if (!cancelled) {
+          setStatus('Error: ' + err.message + '. Redirecting...');
+          setTimeout(() => { window.location.href = APP_URL; }, 2000);
+        }
       }
     };
 
-    handleAuthCallback();
-  }, [loading, user, navigate, checkOnboardedStatus]);
+    handleCallback();
+    return () => { cancelled = true; };
+  }, []); // empty deps — run once on mount only
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
       height: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       color: 'white',
       fontSize: '18px'
     }}>
-      Completing authentication...
+      <div style={{ marginBottom: '16px' }}>⏳</div>
+      {status}
     </div>
   );
 }
@@ -216,7 +299,7 @@ function App() {
   const [selectedState, setSelectedState] = useState('');
   const [selectedIncome, setSelectedIncome] = useState('');
   const [activeTab, setActiveTab] = useState('browse');
-  
+
   // New Feature States
   const [whatsappStatus, setWhatsappStatus] = useState(null);
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
@@ -236,37 +319,53 @@ function App() {
 
   // OCR Document Upload State
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadStatus, setUploadStatus] = useState(''); // '' | 'uploading' | 'success' | 'error'
   const [pdfInsights, setPdfInsights] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [scanStep, setScanStep] = useState(0); // 0=idle,1=uploading,2=ocr,3=gemini,4=done
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
+  const runOcr = async (file) => {
     setSelectedFile(file);
     setUploadStatus('uploading');
     setPdfInsights('');
+    setScanStep(1);
 
     const formData = new FormData();
-    // Re-use logic for image or pdf, we call the field 'document'
     formData.append('document', file);
+
+    // Simulate step progression for UX
+    const stepTimer1 = setTimeout(() => setScanStep(2), 800);  // OCR
+    const stepTimer2 = setTimeout(() => setScanStep(3), 2000); // Gemini
 
     try {
       const res = await fetch('http://localhost:5000/api/ocr/analyze-image', {
         method: 'POST',
         body: formData,
       });
+      clearTimeout(stepTimer1); clearTimeout(stepTimer2);
       const data = await res.json();
       if (data.success) {
         setPdfInsights(data.insights);
+        setScanStep(4);
         setUploadStatus('success');
       } else {
+        setScanStep(0);
         setUploadStatus('error');
       }
     } catch (err) {
+      clearTimeout(stepTimer1); clearTimeout(stepTimer2);
+      setScanStep(0);
       setUploadStatus('error');
       console.error(err);
     }
+  };
+
+  const handleFileUpload = (e) => { const file = e.target.files[0]; if (file) runOcr(file); };
+
+  const handleDrop = (e) => {
+    e.preventDefault(); setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) runOcr(file);
   };
 
   // Location params state for location tracer
@@ -292,24 +391,24 @@ function App() {
 
   // ── Sync schemes + trigger WhatsApp notification ──
   const syncSchemes = async () => {
-      console.log("SYNC CLICKED");
-      console.log("user object:", user);
-      console.log("uid being sent:", user?.id);
-      try {
-        setIsLoading(true);
-        const uid = user?.id ?? "";
-        const res = await fetch(`http://localhost:5000/api/firecrawl/sync?uid=${uid}`);
-        const data = await res.json();
-        console.log("Fetched schemes:", data);
-        if (data.success && data.schemes) {
-          setSchemes(data.schemes);
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsLoading(false);
+    console.log("SYNC CLICKED");
+    console.log("user object:", user);
+    console.log("uid being sent:", user?.id);
+    try {
+      setIsLoading(true);
+      const uid = user?.id ?? "";
+      const res = await fetch(`http://localhost:5000/api/firecrawl/sync?uid=${uid}`);
+      const data = await res.json();
+      console.log("Fetched schemes:", data);
+      if (data.success && data.schemes) {
+        setSchemes(data.schemes);
       }
-    };
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Update the root font-size for full page accessibility scaling
   useEffect(() => {
@@ -344,24 +443,30 @@ function App() {
   const languages = ['English', 'हिंदी', 'मराठी', 'தமிழ்', 'తెలుగు'];
 
   const getCategoryColor = (category) => {
-  if (!category) return '#003366'; // add this line at the top
-  const colors = {
-    'Farmers': '#2d5a3d',
-    // ... rest stays the same
-  };
-  return colors[category] || '#003366';
+    if (!category) return '#103567';
+    const colors = {
+      'Farmers': '#2d5a3d',
+      'Women': '#8e44ad',
+      'Business': '#e67300',
+      'Education': '#2980b9',
+      'Health': '#c0392b',
+      'Senior Citizens': '#7f8c8d',
+      'Youth': '#16a085',
+      'Housing': '#d35400',
+      'General': '#103567'
+    };
+    return colors[category] || '#103567';
   };
 
 
   const handleApply = (e, scheme) => {
     e.preventDefault();
-    setWhatsappStatus('processing');
-    setTimeout(() => {
-      setWhatsappStatus('done');
-      setTimeout(() => {
-        setWhatsappStatus(null);
-      }, 5000);
-    }, 2000);
+    if (scheme.application_link && scheme.application_link !== '#') {
+      window.open(scheme.application_link, '_blank');
+    } else {
+      // Fallback if no valid link exists
+      alert("Application link is currently unavailable for this scheme.");
+    }
   };
 
   return (
@@ -372,7 +477,7 @@ function App() {
           <div className="top-banner">
             <div className="top-banner-inner">
               <span>Government of India | भारत सरकार</span>
-              <span>Powered by LOKSEVA Platform</span>
+              <span>Powered by KRISHISETU Platform</span>
             </div>
           </div>
 
@@ -380,7 +485,7 @@ function App() {
             {/* Left Sidebar */}
             <aside className="sidebar">
               <div className="sidebar-header">
-                <h1>LOKSEVA</h1>
+                <h1>KRISHISETU</h1>
                 <p>Smart Scheme Finder</p>
               </div>
 
@@ -397,7 +502,7 @@ function App() {
               {/* Filters Section */}
               <div className="sidebar-section">
                 <h3>{t('filters_header')}</h3>
-                
+
                 <div className="filter-group">
                   <label>Category</label>
                   <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="filter-select">
@@ -453,23 +558,23 @@ function App() {
                     </button>
                   </>
                 ) : (
-                  <button className="login-btn" onClick={signInWithGoogle}>
-                    {t('login')}
-                  </button>
+                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '8px' }}>
+                    Please sign in from the landing page.
+                  </p>
                 )}
               </div>
 
               {/* Data Sync */}
               <div className="sidebar-section">
                 <h3>DATA SYNC</h3>
-               <button
+                <button
                   type="button"
                   className="sync-btn"
                   disabled={isLoading}
                   onClick={syncSchemes}
-              >
-                {isLoading ? "Syncing..." : t('sync_live')}
-              </button>
+                >
+                  {isLoading ? "Syncing..." : t('sync_live')}
+                </button>
               </div>
             </aside>
 
@@ -478,7 +583,7 @@ function App() {
               {/* Header with Stats */}
               <div className="main-header">
                 <div className="header-left">
-                  <h1>LOKSEVA</h1>
+                  <h1>KRISHISETU</h1>
                   <p>सरकारी योजना खोजें | Government Scheme Finder</p>
                 </div>
               </div>
@@ -533,7 +638,7 @@ function App() {
                   className={`tab ${activeTab === 'fraud' ? 'active' : ''}`}
                   onClick={() => setActiveTab('fraud')}
                 >
-                  Latest Updates
+                  {t('tab_taaza')}
                 </button>
               </div>
 
@@ -547,9 +652,11 @@ function App() {
                     <div className="schemes-grid">
                       {filteredSchemes.map((scheme) => (
                         <div key={scheme._id} className="scheme-card">
-                          <div className="card-header" style={{ backgroundColor: getCategoryColor(scheme.category) }}>
-                            <div className="card-category">{scheme.category?.toUpperCase() || 'GENERAL'}</div>
-                            <h3 className="card-title">{scheme.scheme_name}</h3>
+                          <div className="card-header" style={{ background: getCategoryColor(scheme.category), borderTop: 'none', padding: '24px 24px 20px' }}>
+                            <div className="card-category" style={{ color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>✦</span> {scheme.category?.toUpperCase() || 'GENERAL'}
+                            </div>
+                            <h3 className="card-title" style={{ color: '#ffffff' }}>{scheme.scheme_name}</h3>
                           </div>
                           <div className="card-body">
                             <p className="card-summary">{scheme.summary}</p>
@@ -586,51 +693,179 @@ function App() {
               {/* PDF Parsing Wizard Tab */}
               {activeTab === 'pdf' && (
                 <div className="tab-content pdf-wizard">
+                  {/* Header */}
                   <div className="fraud-header">
                     <div>
-                      <h3><FileText size={28} color="#003366" /> AI Policy PDF & Image Analyzer</h3>
-                      <p>Drop a confusing government policy PDF or Image here. Our AI will instantly extract your eligibility and benefits.</p>
+                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <FileText size={26} color="#003366" /> AI Policy PDF &amp; Image Analyzer
+                      </h3>
+                      <p style={{ marginTop: 4, color: '#555', fontSize: '0.95rem' }}>
+                        Upload any government policy document or image — our AI will OCR-scan it and generate a plain-language summary.
+                      </p>
                     </div>
                   </div>
-                  <div className="pdf-dropzone" style={{ position: 'relative', overflow: 'hidden', padding: '40px', background: '#ffffff', border: '2px dashed #103567', borderRadius: '4px', marginTop: '20px' }}>
-                    <input 
-                      type="file" 
-                      accept="image/*,.pdf" 
-                      onChange={handleFileUpload} 
-                      style={{ 
-                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                        opacity: 0, cursor: 'pointer', zIndex: 10 
-                      }} 
+
+                  {/* Drop Zone */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={handleDrop}
+                    style={{
+                      position: 'relative',
+                      marginTop: '20px',
+                      padding: '48px 32px',
+                      background: isDragOver ? '#eef4ff' : '#f8faff',
+                      border: `2px dashed ${isDragOver ? '#4a6cf7' : '#103567'}`,
+                      borderRadius: '12px',
+                      textAlign: 'center',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      id="ocr-file-input"
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileUpload}
+                      disabled={uploadStatus === 'uploading'}
+                      style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', zIndex: 10 }}
                     />
-                    <div style={{ pointerEvents: 'none', position: 'relative', zIndex: 1 }}>
-                      <UploadCloud size={64} color="#103567" className="upload-icon" style={{ margin: '0 auto 10px auto', display: 'block' }} />
-                    <h4>Drag & Drop Policy PDF / Image</h4>
-                    <p>Maximum file size: 10MB</p>
-                      <button className="btn-upload" style={{ pointerEvents: 'none', marginTop: '15px' }}>
-                        {uploadStatus === 'uploading' ? 'Analyzing...' : 'Browse Files'}
-                      </button>
-                    </div>
+                    <UploadCloud size={56} color={isDragOver ? '#4a6cf7' : '#103567'} style={{ margin: '0 auto 14px', display: 'block', transition: 'color 0.2s' }} />
+                    <h4 style={{ margin: '0 0 6px', color: '#103567', fontSize: '1.15rem', fontWeight: 700 }}>
+                      {isDragOver ? '📂 Release to Scan' : 'Drag & Drop a PDF or Image'}
+                    </h4>
+                    <p style={{ color: '#777', fontSize: '0.88rem', margin: '0 0 16px' }}>Supports PDF, PNG, JPG, JPEG &bull; Max 10 MB</p>
+                    <button
+                      style={{
+                        pointerEvents: 'none',
+                        background: '#103567', color: '#fff',
+                        border: 'none', borderRadius: '6px',
+                        padding: '10px 28px', fontWeight: 600, fontSize: '0.95rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {uploadStatus === 'uploading' ? '⏳ Scanning...' : 'Browse Files'}
+                    </button>
                   </div>
 
+                  {/* File preview chip */}
+                  {selectedFile && (
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        background: '#e8f0fd', border: '1px solid #b3cdf5',
+                        borderRadius: '20px', padding: '4px 12px',
+                        fontSize: '0.82rem', color: '#103567', fontWeight: 600,
+                      }}>
+                        📄 {selectedFile.name}
+                        <span style={{ color: '#888', fontWeight: 400 }}>({(selectedFile.size / 1024).toFixed(0)} KB)</span>
+                      </span>
+                      {(uploadStatus === 'success' || uploadStatus === 'error') && (
+                        <button
+                          onClick={() => { setSelectedFile(null); setUploadStatus(''); setPdfInsights(''); setScanStep(0); }}
+                          style={{ background: 'none', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: '0.82rem', textDecoration: 'underline' }}
+                        >Clear</button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Scan Step Tracker */}
                   {uploadStatus === 'uploading' && (
-                    <div className="loading-state" style={{ marginTop: '20px', textAlign: 'center' }}>
-                      <div className="spinner"></div>
-                      <p>Our AI is analyzing the document using OCR...</p>
+                    <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px 24px' }}>
+                      <p style={{ fontWeight: 700, color: '#103567', marginBottom: '16px', fontSize: '0.95rem' }}>🔍 Scanning Document...</p>
+                      {[
+                        { step: 1, label: 'Uploading document to server', icon: '⬆️' },
+                        { step: 2, label: scanStep >= 2 && selectedFile?.name?.toLowerCase().endsWith('.pdf') ? 'Extracting text from PDF' : 'Running Tesseract.js OCR on image', icon: '📖' },
+                        { step: 3, label: 'Sending to Gemini AI for analysis', icon: '🤖' },
+                      ].map(({ step, label, icon }) => (
+                        <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', opacity: scanStep >= step ? 1 : 0.35, transition: 'opacity 0.4s' }}>
+                          <span style={{ fontSize: '1.2rem' }}>{scanStep > step ? '✅' : scanStep === step ? '⏳' : icon}</span>
+                          <span style={{ fontSize: '0.9rem', color: scanStep >= step ? '#103567' : '#999', fontWeight: scanStep === step ? 700 : 400 }}>{label}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: '12px', height: '4px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${(scanStep / 3) * 100}%`, background: 'linear-gradient(90deg, #103567, #4a6cf7)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                      </div>
                     </div>
                   )}
 
+                  {/* Error */}
                   {uploadStatus === 'error' && (
-                    <div className="error-state" style={{ marginTop: '20px', color: 'red', textAlign: 'center' }}>
-                      <p>Failed to analyze document. Please make sure the backend is running.</p>
+                    <div style={{ marginTop: '20px', background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '10px', padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+                      <div>
+                        <p style={{ color: '#c53030', fontWeight: 700, margin: 0 }}>Document Analysis Failed</p>
+                        <p style={{ color: '#742a2a', fontSize: '0.87rem', marginTop: '4px' }}>Make sure the backend is running on port 5000 and the Gemini API key is set. Try a clearer image or a text-based PDF.</p>
+                      </div>
                     </div>
                   )}
 
+                  {/* Success — Summary Box */}
                   {uploadStatus === 'success' && pdfInsights && (
-                    <div className="scanned-insights" style={{ marginTop: '20px', background: '#f7fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <h4>AI Extracted Insights</h4>
-                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', marginTop: '10px' }}>
-                        {pdfInsights}
-                      </pre>
+                    <div style={{ marginTop: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <CheckCircle size={20} color="#276749" />
+                        <h4 style={{ margin: 0, color: '#276749', fontSize: '1rem', fontWeight: 700 }}>AI Document Summary</h4>
+                        <span style={{ marginLeft: 'auto', background: '#c6f6d5', color: '#276749', borderRadius: '12px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: 600 }}>Powered by Gemini + Tesseract</span>
+                      </div>
+                      <div
+                        id="pdf-export-content"
+                        style={{
+                          background: '#f0fff4',
+                          border: '1px solid #9ae6b4',
+                          borderRadius: '10px',
+                          padding: '20px 22px',
+                          maxHeight: '420px',
+                          overflowY: 'auto',
+                        }}>
+                        {/* Header for PDF export (hidden in UI, shown in PDF) */}
+                        <div className="pdf-only-header" style={{ display: 'none', marginBottom: '20px', borderBottom: '2px solid #103567', paddingBottom: '10px' }}>
+                          <h2 style={{ color: '#103567', margin: '0 0 5px' }}>KRISHISETU</h2>
+                          <p style={{ margin: 0, color: '#555' }}>AI Policy Analyzer Report — {selectedFile?.name}</p>
+                        </div>
+                        {pdfInsights.split('\n').map((line, i) => {
+                          const trimmed = line.trim();
+                          if (!trimmed) return <div key={i} style={{ height: '8px' }} />;
+                          // Bold headings like "## Section" or lines ending with :
+                          if (trimmed.startsWith('##') || trimmed.startsWith('**')) {
+                            return <p key={i} style={{ fontWeight: 700, color: '#103567', margin: '10px 0 4px', fontSize: '0.97rem' }}>{trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '')}</p>;
+                          }
+                          if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                            return <p key={i} style={{ margin: '3px 0 3px 14px', color: '#2d3748', fontSize: '0.9rem' }}>• {trimmed.slice(2)}</p>;
+                          }
+                          return <p key={i} style={{ margin: '4px 0', color: '#2d3748', fontSize: '0.9rem', lineHeight: 1.65 }}>{trimmed}</p>;
+                        })}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(pdfInsights)}
+                          style={{ background: 'none', border: '1px solid #103567', borderRadius: '6px', padding: '8px 16px', color: '#103567', cursor: 'pointer', fontSize: '0.86rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >📋 Copy Text</button>
+
+                        <button
+                          onClick={() => {
+                            const element = document.getElementById('pdf-export-content');
+                            // Temporarily show the pure PDF header
+                            const header = element.querySelector('.pdf-only-header');
+                            if (header) header.style.display = 'block';
+
+                            const opt = {
+                              margin: 10,
+                              filename: `KrishiSetu_Report_${selectedFile?.name.replace(/\.[^/.]+$/, "") || 'Doc'}.pdf`,
+                              image: { type: 'jpeg', quality: 0.98 },
+                              html2canvas: { scale: 2 },
+                              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                            };
+
+                            html2pdf().set(opt).from(element).save().then(() => {
+                              // Hide header again
+                              if (header) header.style.display = 'none';
+                            });
+                          }}
+                          style={{ background: '#103567', border: 'none', borderRadius: '6px', padding: '8px 16px', color: '#fff', cursor: 'pointer', fontSize: '0.86rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                        ><Download size={16} /> Download PDF Report</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -652,12 +887,12 @@ function App() {
                           frameBorder="0"
                           style={{ border: '1px solid #dee2e6', borderRadius: '4px' }}
                           referrerPolicy="no-referrer-when-downgrade"
-                          src={showMapPins 
+                          src={showMapPins
                             ? `https://www.google.com/maps/embed/v1/search?key=AIzaSyBo76tcZqaSv8KSTeoAUhEdtnTLW28HTtg&q=government+offices&center=${locationParams.lat},${locationParams.lng}&zoom=14`
                             : `https://www.google.com/maps/embed/v1/place?key=AIzaSyBo76tcZqaSv8KSTeoAUhEdtnTLW28HTtg&q=${locationParams.lat},${locationParams.lng}&zoom=14`}
                           allowFullScreen>
                         </iframe>
-                        <button 
+                        <button
                           className="btn-apply"
                           onClick={() => setShowMapPins(!showMapPins)}
                           style={{
@@ -676,7 +911,7 @@ function App() {
                             gap: '8px'
                           }}
                         >
-                          <span style={{ fontSize: '1.2rem', marginTop: '-2px' }}>{showMapPins ? '👤' : '🏛️'}</span> 
+                          <span style={{ fontSize: '1.2rem', marginTop: '-2px' }}>{showMapPins ? '👤' : '🏛️'}</span>
                           {showMapPins ? 'Show My Location' : 'Find Nearby Govt Offices'}
                         </button>
                       </div>
@@ -693,8 +928,8 @@ function App() {
                 <div className="tab-content taaza-dashboard">
                   <div className="fraud-header">
                     <div>
-                      <h3>Latest Updates</h3>
-                      <p>Latest notifications and news regarding government schemes in India.</p>
+                      <h3>{t('tab_taaza')}</h3>
+                      <p>{t('taaza_desc')}</p>
                     </div>
                   </div>
 
@@ -702,9 +937,9 @@ function App() {
                     <div className="marquee-wrapper">
                       <div className="marquee-content">
                         {taazaKhabarNews.map((news, index) => (
-                          <div 
-                            key={news.id} 
-                            className="news-item curved-square" 
+                          <div
+                            key={news.id}
+                            className="news-item curved-square"
                           >
                             <div className="news-header">
                               <span className="news-title">{news.title}</span>
@@ -717,9 +952,9 @@ function App() {
                         ))}
                         {/* Duplicate for infinite scrolling effect */}
                         {taazaKhabarNews.map((news, index) => (
-                          <div 
-                            key={`dup-${news.id}`} 
-                            className="news-item curved-square" 
+                          <div
+                            key={`dup-${news.id}`}
+                            className="news-item curved-square"
                           >
                             <div className="news-header">
                               <span className="news-title">{news.title}</span>
@@ -737,7 +972,7 @@ function App() {
               )}
             </main>
           </div>
-          
+
           {/* WhatsApp Success Modal Overlay */}
           {whatsappStatus && (
             <div className="whatsapp-overlay">
@@ -751,7 +986,7 @@ function App() {
                 ) : (
                   <>
                     <CheckCircle size={56} color="#25D366" />
-                    <h4 style={{marginTop: '16px'}}>Application Successful!</h4>
+                    <h4 style={{ marginTop: '16px' }}>Application Successful!</h4>
                     <p>Future eligibility alerts and confirmation receipt have been linked to your registered mobile via <strong>WhatsApp (+91 8080484908)</strong>.</p>
                   </>
                 )}
@@ -767,7 +1002,7 @@ function App() {
             {accessibilityOpen && (
               <div className="accessibility-panel">
                 <h4>Accessibility Tools</h4>
-                
+
                 <div className="acc-section">
                   <label>Contrast Adjustment</label>
                   <div className="acc-grid">
@@ -806,7 +1041,7 @@ function App() {
           {/* Inject VAPI Assistant Widget */}
           <VapiChatAssistant />
         </div>
-      }/>
+      } />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/profile" element={<Profile />} />
     </Routes>

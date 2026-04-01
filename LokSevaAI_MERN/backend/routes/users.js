@@ -61,18 +61,44 @@ router.put('/profile/:email', async (req, res) => {
   }
 });
 
+// ── Check if user exists by email (used by data-collection app) ──
+// GET /api/users/check-email?email=xxx
+router.get('/check-email', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' });
+    }
+    const user = await User.findOne({ email: email.toLowerCase() });
+    res.json({ exists: !!user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // ── Upsert from data-collection module (Vite frontend) ────
 // POST /api/users/upsert
 // Matches by Supabase UID so re-submits don't create duplicates.
 router.post('/upsert', async (req, res) => {
   try {
-    const { uid, full_name, phone, profession, income_bracket, domicile } = req.body;
+    const { uid, email, full_name, phone, profession, income_bracket, domicile } = req.body;
 
     if (!uid) {
       return res.status(400).json({ message: 'uid is required' });
     }
 
-    const update = { user_id: uid, full_name, phone, profession, income_bracket, domicile };
+    const update = {
+      user_id: uid,
+      email: email ? email.toLowerCase() : undefined,
+      full_name,
+      phone,
+      profession,
+      income_bracket,
+      domicile
+    };
+
+    // Remove undefined fields so we don't overwrite existing data with undefined
+    Object.keys(update).forEach(k => update[k] === undefined && delete update[k]);
 
     const user = await User.findOneAndUpdate(
       { user_id: uid },           // match by Supabase UID

@@ -18,6 +18,13 @@ function getSB() {
 //  GOOGLE AUTH TRIGGER
 
 async function loginWithGoogle() {
+    // --- DEVELOPMENT MOCK BYPASS ---
+    // Bypassing Supabase because it's currently paused/down. 
+    // This directly routes the user to the next step of the onboarding flow.
+    console.log("Mock Auth Bypass: Redirecting to Data Collection...");
+    window.location.href = MAIN_PAGE_URL + '#mock_bypass=true';
+
+    /* --- PRODUCTION SUPABASE AUTH ---
     const sb = getSB();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
@@ -31,6 +38,7 @@ async function loginWithGoogle() {
         console.error('OAuth error:', error.message);
         alert('Google sign-in failed: ' + error.message);
     }
+    */
 }
 
 //  SESSION CHECK ON LP LOAD

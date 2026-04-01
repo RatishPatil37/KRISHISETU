@@ -1,2 +1,0 @@
-# LokSevaAI_MERN
-

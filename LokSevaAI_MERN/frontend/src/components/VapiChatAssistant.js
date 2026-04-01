@@ -133,7 +133,7 @@ const VapiChatAssistant = () => {
       {isOpen && (
         <div className="vapi-chat-window">
           <div className="vapi-chat-header">
-            <h3>🤖 LokSeva Voice Agent</h3>
+            <h3>🤖 KrishiSetu Voice Agent</h3>
             <button className="close-btn" onClick={() => setIsOpen(false)}>✕</button>
           </div>
           

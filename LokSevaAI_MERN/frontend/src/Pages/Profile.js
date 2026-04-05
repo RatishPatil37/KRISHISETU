@@ -13,12 +13,22 @@ function Profile() {
     phone: '',
     age: '',
     state: '',
+    district: '',
+    taluka: '',
+    location: '',
     incomeClass: '',
+    income_value: '',
     language: 'english'
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  // Captcha State
+  const [captchaNum1, setCaptchaNum1] = useState(Math.floor(Math.random() * 10) + 1);
+  const [captchaNum2, setCaptchaNum2] = useState(Math.floor(Math.random() * 10) + 1);
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -36,8 +46,19 @@ function Profile() {
 
     try {
       const response = await axios.get(`http://localhost:5000/api/users/profile/${authUser.email}`);
-      setProfile(prev => ({ ...prev, ...response.data }));
+      const data = response.data.user || response.data;
+      
+      setProfile(prev => ({ 
+        ...prev, 
+        ...data,
+        name: data.name || data.full_name || prev.name, 
+        location: data.location || data.village || prev.location
+      }));
       setIsLoading(false);
+      // Auto-edit if vital info is missing
+      if (!data.phone || (!data.name && !data.full_name)) {
+        setIsEditing(true);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       // If user doesn't exist in MongoDB, set basic info from auth
@@ -47,6 +68,7 @@ function Profile() {
         name: authUser.user_metadata?.full_name || ''
       }));
       setIsLoading(false);
+      setIsEditing(true); // Automatically open edit window for new user
     }
   };
 
@@ -60,15 +82,24 @@ function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (parseInt(captchaInput) !== captchaNum1 + captchaNum2) {
+      setCaptchaError('Incorrect CAPTCHA answer. Please try again.');
+      setCaptchaNum1(Math.floor(Math.random() * 10) + 1);
+      setCaptchaNum2(Math.floor(Math.random() * 10) + 1);
+      setCaptchaInput('');
+      return;
+    }
+    setCaptchaError('');
     setIsLoading(true);
     setMessage('');
 
     try {
       const response = await axios.post('http://localhost:5000/api/users/profile', profile);
-      setProfile(response.data);
+      const data = response.data.user || response.data;
+      setProfile(prev => ({ ...prev, ...data }));
       setIsEditing(false);
-      setMessage('Profile updated successfully!');
-      setTimeout(() => setMessage(''), 3000);
+      setMessage('Profile up to date! Redirecting...');
+      setTimeout(() => navigate('/'), 1500); // Redirect to main dashboard
     } catch (error) {
       console.error('Error updating profile:', error);
       setMessage('Error updating profile. Please try again.');
@@ -102,166 +133,140 @@ function Profile() {
   ];
 
   if (authLoading || isLoading) {
-    return (
-      <div className="profile-container">
-        <div className="loading">Loading profile...</div>
-      </div>
-    );
+    return <div className="profile-wrapper"><div className="loading">Loading profile...</div></div>;
   }
 
   if (!authUser) {
-    return (
-      <div className="profile-container">
-        <div className="profile-header">
-          <button className="back-btn" onClick={() => navigate('/')}>
-            ← Back to Schemes
-          </button>
-          <h1>My Profile</h1>
-        </div>
-        <div className="profile-content">
-          <div className="message error">
-            You must be logged in to view your profile. Please log in first.
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="profile-wrapper"><div className="loading">Please log in from main page.</div></div>;
   }
 
   return (
-    <div className="profile-container">
-      <div className="profile-header">
-        <button className="back-btn" onClick={() => navigate('/')}>
-          ← Back to Schemes
-        </button>
-        <h1>My Profile</h1>
-      </div>
-
-      {message && (
-        <div className={`message ${message.includes('Error') ? 'error' : 'success'}`}>
-          {message}
+    <div className="profile-wrapper">
+      <div className="profile-box">
+        {/* Left Side: Aesthetic theme image */}
+        <div className="profile-image-panel">
+          <div className="overlay-text">
+            <h2>Welcome to KrishiSetu</h2>
+            <p>Your modern portal to agricultural prosperity and government schemes.</p>
+          </div>
         </div>
-      )}
-
-      <div className="profile-content">
-        <form onSubmit={handleSubmit} className="profile-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={profile.email}
-              disabled
-              className="disabled-input"
-            />
-            <small>This field cannot be edited</small>
+        
+        {/* Right Side: Form */}
+        <div className="profile-form-section">
+          <div className="profile-header">
+            <button className="back-btn" onClick={() => navigate('/')}>
+              ← Back to Schemes
+            </button>
+            <h1>My Profile</h1>
+            <p className="profile-subtitle">Complete your details to unlock smart scheme recommendations.</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="name">Full Name *</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={profile.name}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-              required
-            />
-          </div>
+          {message && (
+            <div className={`message ${message.includes('Error') ? 'error' : 'success'}`}>
+              {message}
+            </div>
+          )}
 
-          <div className="form-group">
-            <label htmlFor="phone">Phone Number</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={profile.phone}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-              placeholder="Enter your phone number"
-            />
-          </div>
+          <div className="profile-content">
+            <form onSubmit={handleSubmit} className="profile-form custom-grid-form">
+              <div className="form-group full-width">
+                <label>Locked Email</label>
+                <input type="email" name="email" value={profile.email} disabled className="disabled-input input-field" />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="age">Age</label>
-            <input
-              type="number"
-              id="age"
-              name="age"
-              value={profile.age}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-              min="1"
-              max="120"
-              placeholder="Enter your age"
-            />
-          </div>
+              <div className="form-group">
+                <label>Full Name *</label>
+                <input type="text" name="name" value={profile.name || ''} onChange={handleInputChange} disabled={!isEditing} required className="input-field" />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="state">State</label>
-            <select
-              id="state"
-              name="state"
-              value={profile.state}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-            >
-              <option value="">Select your state</option>
-              {stateOptions.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
+              <div className="form-group">
+                <label>Phone Number *</label>
+                <input type="tel" name="phone" value={profile.phone || ''} onChange={handleInputChange} disabled={!isEditing} required className="input-field" placeholder="10-digit mobile" />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="incomeClass">Income Class</label>
-            <select
-              id="incomeClass"
-              name="incomeClass"
-              value={profile.incomeClass}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-            >
-              <option value="">Select income class</option>
-              {incomeOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+              <div className="form-group">
+                <label>Age</label>
+                <input type="number" name="age" value={profile.age || ''} onChange={handleInputChange} disabled={!isEditing} min="1" max="120" className="input-field" placeholder="Years" />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="language">Preferred Language</label>
-            <select
-              id="language"
-              name="language"
-              value={profile.language}
-              onChange={handleInputChange}
-              disabled={!isEditing}
-            >
-              {languageOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+              <div className="form-group">
+                <label>State</label>
+                <select name="state" value={profile.state || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field">
+                  <option value="">Select state</option>
+                  {stateOptions.map(state => <option key={state} value={state}>{state}</option>)}
+                </select>
+              </div>
 
-          <div className="form-actions">
-            {!isEditing ? (
-              <button type="button" onClick={() => setIsEditing(true)} className="edit-btn">
-                Edit Profile
-              </button>
-            ) : (
-              <>
-                <button type="submit" className="save-btn" disabled={isLoading}>
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button type="button" onClick={() => setIsEditing(false)} className="cancel-btn">
-                  Cancel
-                </button>
-              </>
-            )}
+              <div className="form-group">
+                <label>District</label>
+                <input type="text" name="district" value={profile.district || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field" placeholder="Your district" />
+              </div>
+
+              <div className="form-group">
+                <label>Taluka</label>
+                <input type="text" name="taluka" value={profile.taluka || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field" placeholder="Your taluka" />
+              </div>
+
+              <div className="form-group">
+                <label>Village / Location</label>
+                <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field" placeholder="Your village" />
+              </div>
+
+              <div className="form-group">
+                <label>Annual Income (₹)</label>
+                <input type="number" name="income_value" value={profile.income_value || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field" placeholder="e.g. 120000" />
+              </div>
+
+              <div className="form-group">
+                <label>Income Class</label>
+                <select name="incomeClass" value={profile.incomeClass || ''} onChange={handleInputChange} disabled={!isEditing} className="input-field">
+                  <option value="">Select income class</option>
+                  {incomeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Preferred Language</label>
+                <select name="language" value={profile.language || 'english'} onChange={handleInputChange} disabled={!isEditing} className="input-field">
+                  {languageOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+
+              {isEditing && (
+                <div className="form-group full-width captcha-section">
+                  <label>Verification (CAPTCHA) *</label>
+                  <p className="captcha-desc">Please solve this simple math puzzle so we know you are not a bot:</p>
+                  <div className="captcha-row">
+                    <span className="captcha-equation">{captchaNum1} + {captchaNum2} = </span>
+                    <input 
+                      type="number" 
+                      value={captchaInput} 
+                      onChange={(e) => setCaptchaInput(e.target.value)} 
+                      required 
+                      className="input-field captcha-input"
+                      placeholder="?" 
+                    />
+                  </div>
+                  {captchaError && <small className="error-text">{captchaError}</small>}
+                </div>
+              )}
+
+              <div className="form-actions full-width">
+                {!isEditing ? (
+                  <button type="button" onClick={() => setIsEditing(true)} className="edit-btn btn">Edit Profile</button>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => {
+                        setIsEditing(false);
+                        setCaptchaError('');
+                    }} className="cancel-btn btn">Cancel</button>
+                    <button type="submit" className="save-btn btn" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save & Continue →'}</button>
+                  </>
+                )}
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

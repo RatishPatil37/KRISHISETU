@@ -9,6 +9,10 @@ const schemeSchema = new mongoose.Schema({
   benefits: { type: String, required: true },
   application_link: { type: String, required: true },
   summary: { type: String, required: true },
+  required_documents: { type: String, default: 'Aadhar Card, Income Certificate, Domicile' },
+  start_date: { type: String, default: 'January 1st, 2026' },
+  end_date: { type: String, default: 'December 31st, 2026' },
+  eligibility_score: { type: Number, default: 75 },
   embeddings: [Number], // For vector search, if needed
 }, { timestamps: true });
 

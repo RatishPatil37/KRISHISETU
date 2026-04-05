@@ -24,9 +24,7 @@ app.use("/api/firecrawl", firecrawlRoutes);
 app.use("/api/profile", profileRoutes);
 
 // MongoDB connection
-mongoose.connect(
-  "mongodb+srv://Atharva:Chakravyuh@chakravyuhtwilio.jqd9vn0.mongodb.net/?appName=ChakravyuhTwilio"
-)
+mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("MongoDB Atlas connected"))
 .catch(err => console.log(err));
 

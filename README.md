@@ -1,4 +1,4 @@
-# 🏛️ YojanaAI — Government Scheme Finder
+# 🏛️ KrishiSetu — Government Scheme Finder
 ### Built for Chakravyuh 2.0 Hackathon
 
 > **Find every government scheme you deserve — in your language, instantly, with AI fraud protection.**

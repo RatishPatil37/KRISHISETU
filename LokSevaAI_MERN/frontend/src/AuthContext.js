@@ -16,16 +16,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // --- DEVELOPMENT MOCK BYPASS ---
-    const isMock = localStorage.getItem('krishisetu_mock_logged_in') === 'true';
-    if (isMock) {
-        setUser({ id: 'mock-auth-id', email: 'farmer@krishisetu.com', user_metadata: { full_name: 'Farmer User' } });
-        setLoading(false);
-        return;
-    }
-    
-    /* --- PRODUCTION SUPABASE AUTH ---
-    // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
@@ -34,7 +24,6 @@ export const AuthProvider = ({ children }) => {
 
     getInitialSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null);
@@ -43,18 +32,13 @@ export const AuthProvider = ({ children }) => {
     );
 
     return () => subscription.unsubscribe();
-    */
   }, []);
 
   const signInWithGoogle = async () => {
-    // --- DEVELOPMENT MOCK BYPASS ---
-    window.location.href = 'http://localhost:5000/app/auth/callback?mock_bypass=true';
-    
-    /* --- PRODUCTION SUPABASE AUTH ---
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: window.location.origin + '/app/auth/callback'
       }
     });
 
@@ -62,16 +46,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Error signing in with Google:', error.message);
       throw error;
     }
-    */
   };
 
   const signOut = async () => {
-    // --- DEVELOPMENT MOCK BYPASS ---
-    localStorage.removeItem('krishisetu_mock_logged_in');
-    setUser(null);
-    window.location.href = 'http://localhost:5000';
-    
-    /* --- PRODUCTION SUPABASE AUTH ---
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error.message);
@@ -79,15 +56,9 @@ export const AuthProvider = ({ children }) => {
     }
     // Redirect to landing page after logout
     window.location.href = 'http://localhost:5000';
-    */
   };
 
   const checkOnboardedStatus = async (email) => {
-    // --- DEVELOPMENT MOCK BYPASS ---
-    // If we're mocking, we just assume they are onboarded to reach the dashboard
-    return true;
-
-    /* --- PRODUCTION MONGODB CHECK ---
     try {
       if (!email) return false;
 
@@ -101,7 +72,6 @@ export const AuthProvider = ({ children }) => {
       console.error('Error checking onboarded status in MongoDB:', error);
       return false;
     }
-    */
   };
 
   const value = {

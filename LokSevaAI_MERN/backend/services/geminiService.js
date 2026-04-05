@@ -46,9 +46,21 @@ const schemeSchema = {
       eligibility_score: {
         type: SchemaType.NUMBER,
         description: "An arbitrary default eligibility score integer between 50 and 100 for display purposes"
+      },
+      required_documents: {
+        type: SchemaType.STRING,
+        description: "A comma-separated list of documents required to apply for this scheme"
+      },
+      start_date: {
+        type: SchemaType.STRING,
+        description: "The starting date for applications, if mentioned (e.g., '15 Aug 2026')"
+      },
+      end_date: {
+        type: SchemaType.STRING,
+        description: "The deadline for applications, if mentioned (e.g., '30 Nov 2026')"
       }
     },
-    required: ["scheme_name", "category", "eligibility_criteria", "benefits", "summary", "state", "income_level", "application_link", "eligibility_score"]
+    required: ["scheme_name", "category", "eligibility_criteria", "benefits", "summary", "state", "income_level", "application_link", "eligibility_score", "required_documents", "start_date", "end_date"]
   }
 };
 
@@ -81,7 +93,7 @@ async function parseSchemesFromMarkdown(markdownText) {
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    
+
     // The response is expected to be a valid JSON array directly due to responseMimeType
     const schemesData = JSON.parse(responseText);
     return schemesData;

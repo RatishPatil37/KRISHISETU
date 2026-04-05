@@ -1,7 +1,7 @@
 
 //  SUPABASE CONFIG
-const SUPABASE_URL = 'https://awldamekqajcfbqfwwge.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_87c-6w_xL70ZVmCWdO0yDQ_muFlIsha';
+const SUPABASE_URL = 'https://ofvvofbpxwkrnowhzmoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdnZvZmJweHdrcm5vd2h6bW9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjc1NzEsImV4cCI6MjA4ODY0MzU3MX0.sscHTe1AqEdqP1e80kx1yX5wzSZNQufueYrjda2gzZU';
 
 // After Google OAuth Supabase drops the user straight onto the
 // data collection app (port 5173) with the auth hash in the URL.
@@ -18,27 +18,19 @@ function getSB() {
 //  GOOGLE AUTH TRIGGER
 
 async function loginWithGoogle() {
-    // --- DEVELOPMENT MOCK BYPASS ---
-    // Bypassing Supabase because it's currently paused/down. 
-    // This directly routes the user to the next step of the onboarding flow.
-    console.log("Mock Auth Bypass: Redirecting to Data Collection...");
-    window.location.href = MAIN_PAGE_URL + '#mock_bypass=true';
+    console.log("Initiating Supabase Auth...");
 
-    /* --- PRODUCTION SUPABASE AUTH ---
     const sb = getSB();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            // Supabase redirects here with the access_token hash
-            // → Main React app picks it up automatically
-            redirectTo: MAIN_PAGE_URL,
+            redirectTo: 'http://localhost:5000/app/auth/callback',
         },
     });
     if (error) {
         console.error('OAuth error:', error.message);
         alert('Google sign-in failed: ' + error.message);
     }
-    */
 }
 
 //  SESSION CHECK ON LP LOAD

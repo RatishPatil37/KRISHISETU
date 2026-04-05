@@ -28,7 +28,7 @@ function guardAuth() {
       resolve(true);
       return;
     }
-    
+
     /* --- PRODUCTION SUPABASE AUTH ---
     // First, check if there's already a session
     const { data: { session } } = await supabase.auth.getSession();
@@ -356,57 +356,33 @@ async function submitToSupabase() {
   console.log('Submitting to mock store:', formData);
 
   // --- DEVELOPMENT MOCK BYPASS ---
-  // Store form data in local storage so the dashboard can access it
+  const uid = currentUser?.id || 'mock-auth-id';
+  const email = currentUser?.email || 'farmer@krishisetu.com';
+
   localStorage.setItem('krishisetu_mock_user', JSON.stringify({
     ...formData,
-    email: currentUser?.email || 'farmer@krishisetu.com',
-    uid: currentUser?.id || 'mock-id'
+    email: email,
+    uid: uid
   }));
 
-  /* --- PRODUCTION SUPABASE & MONGODB ---
+  // Pass data to MongoDB via Express Backend so dashboard can see it
   try {
-    const uid = currentUser?.id;
-    const email = currentUser?.email;
-    const { error } = await supabase
-      .from('profiles')
-      .upsert([
-        {
-          ...(uid ? { id: uid } : {}),
-          full_name: formData.full_name,
-          domicile: formData.domicile,
-          profession: formData.profession,
-          income_bracket: formData.income_bracket,
-          last_known_location: formData.phone,
-          is_onboarded: true,
-        }
-      ]);
-
-    if (error) {
-      console.error('Supabase error:', error);
-    }
-
-    // Pass data to MongoDB via Express Backend so WhatsApp sync works
-    // Also stores email so MongoDB check-email can find returning users
-    if (uid) {
-       await fetch(`${KRISHISETU_URL}/api/users/upsert`, {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-               uid: uid,
-               email: email,
-               full_name: formData.full_name,
-               phone: formData.phone,
-               profession: formData.profession,
-               income_bracket: formData.income_bracket,
-               domicile: formData.domicile
-           })
-       });
-    }
-
+    await fetch(`${KRISHISETU_URL}/api/users/upsert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: uid,
+        email: email,
+        full_name: formData.full_name,
+        phone: formData.phone,
+        profession: formData.profession,
+        income_bracket: formData.income_bracket,
+        domicile: formData.domicile
+      })
+    });
   } catch (err) {
-    console.error('Network error:', err);
+    console.error('Backend sync error:', err);
   }
-  */
 
   showSuccess();
 }
@@ -475,7 +451,7 @@ function hideError(el) {
 
   // --- DEVELOPMENT MOCK BYPASS ---
   // Completely skip checking if the user already submitted their data since there is no DB
-  
+
   /* --- PRODUCTION MONGODB CHECK ---
   // Check DB: has this user already submitted their data?
   try {

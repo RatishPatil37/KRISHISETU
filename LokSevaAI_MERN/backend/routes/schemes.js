@@ -55,7 +55,7 @@ router.post('/ingest', async (req, res) => {
     // Scrape india.gov.in (simplified example)
     const response = await axios.get('https://www.india.gov.in/my-government/schemes');
     const $ = cheerio.load(response.data);
-    
+
     // Extract scheme links (this is a placeholder, actual scraping would be more complex)
     const schemeLinks = [];
     $('a').each((i, elem) => {
@@ -73,7 +73,7 @@ router.post('/ingest', async (req, res) => {
         const markdown = page$('body').text(); // Simplified
 
         // Use Gemini to structure
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
         const prompt = `Extract government scheme information from this text and return JSON: ${markdown}`;
         const result = await model.generateContent(prompt);
         const structuredData = JSON.parse(result.response.text());

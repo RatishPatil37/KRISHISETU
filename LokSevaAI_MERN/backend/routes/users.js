@@ -9,28 +9,49 @@ router.get('/profile/:email', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json(user);
+    res.json({ success: true, user }); // Wrap in success for consistency
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user profile by UID
+router.get('/profile', async (req, res) => {
+  try {
+    const { uid } = req.query;
+    if (!uid) {
+      return res.status(400).json({ success: false, message: 'uid is required' });
+    }
+    const user = await User.findOne({ user_id: uid });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // Create or update user profile
 router.post('/profile', async (req, res) => {
   try {
-    const { email, name, phone, age, state, incomeClass, language } = req.body;
+    const { email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value } = req.body;
 
     let user = await User.findOne({ email });
 
     if (user) {
-      user.name = name || user.name;
-      user.phone = phone || user.phone;
-      user.age = age || user.age;
-      user.state = state || user.state;
-      user.incomeClass = incomeClass || user.incomeClass;
-      user.language = language || user.language;
+      user.name = name ?? user.name;
+      user.phone = phone ?? user.phone;
+      user.age = age ?? user.age;
+      user.state = state ?? user.state;
+      user.incomeClass = incomeClass ?? user.incomeClass;
+      user.language = language ?? user.language;
+      user.district = district ?? user.district;
+      user.taluka = taluka ?? user.taluka;
+      user.location = location ?? user.location;
+      user.income_value = income_value ?? user.income_value;
     } else {
-      user = new User({ email, name, phone, age, state, incomeClass, language });
+      user = new User({ email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value });
     }
 
     const savedUser = await user.save();
@@ -43,11 +64,11 @@ router.post('/profile', async (req, res) => {
 // Update user profile
 router.put('/profile/:email', async (req, res) => {
   try {
-    const { name, phone, age, state, incomeClass, language } = req.body;
+    const { name, phone, age, state, incomeClass, language, district, taluka, location, income_value } = req.body;
 
     const user = await User.findOneAndUpdate(
       { email: req.params.email },
-      { name, phone, age, state, incomeClass, language },
+      { name, phone, age, state, incomeClass, language, district, taluka, location, income_value },
       { new: true }
     );
 
@@ -87,6 +108,14 @@ router.post('/upsert', async (req, res) => {
       return res.status(400).json({ message: 'uid is required' });
     }
 
+    function calculateIncomeCategory(income) {
+      if (!income && income !== 0) return undefined;
+      const inc = Number(income);
+      if (inc < 150000) return "Backward Class";
+      if (inc < 800000) return "Middle Class";
+      return "Higher Class";
+    }
+
     const update = {
       user_id: uid,
       email: email ? email.toLowerCase() : undefined,
@@ -94,6 +123,7 @@ router.post('/upsert', async (req, res) => {
       phone,
       profession,
       income_bracket,
+      income_category: calculateIncomeCategory(income_bracket),
       domicile
     };
 

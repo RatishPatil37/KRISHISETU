@@ -65,7 +65,21 @@ npm install
 npm start
 ```
 
-The application will automatically open in your browser at `http://localhost:3000`.
+### 5. Data Collection App Setup (Optional)
+If you also need to run the separate Data Collection module (built with Vite), **open a new terminal window**:
+
+```bash
+# Navigate to the data collection directory
+cd "LokSevaAI/data collection"
+
+# Install dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+
+The application will automatically open in your browser or be available at `http://localhost:5173`.
 
 ---
 

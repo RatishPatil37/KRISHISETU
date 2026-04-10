@@ -13,13 +13,14 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.options('*', cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use("/api/firecrawl", firecrawlRoutes);
 app.use("/api/profile", profileRoutes);
 
@@ -37,9 +38,11 @@ app.get('/api', (req, res) => {
 const schemeRoutes = require('./routes/schemes');
 const userRoutes = require('./routes/users');
 const ocrRoutes = require('./routes/ocr');
+const cropDoctorRoutes = require('./routes/cropDoctor');
 app.use('/api/schemes', schemeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/crop-doctor', cropDoctorRoutes);
 
 app.use(express.static(path.join(__dirname, '../../LokSevaAI/LandingPage')));
 

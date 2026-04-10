@@ -1,0 +1,303 @@
+================================================================================
+     AI CROPS DOCTOR — FEATURE DOCUMENTATION
+     KRISHISETU Project | Part 2 Feature
+     Written for Team Understanding
+================================================================================
+
+LAST UPDATED : April 11, 2026
+AUTHOR       : Abbas
+STATUS       : ✅ Working & Deployed (localhost)
+
+--------------------------------------------------------------------------------
+1. WHAT IS THIS FEATURE?
+--------------------------------------------------------------------------------
+
+"AI Crops Doctor" is a new tab added to the KRISHISETU web app dashboard.
+
+A farmer uploads a photo of their crop (e.g. a tomato leaf with brown spots).
+The system:
+  → Identifies the crop (e.g. "Tomato")
+  → Detects the disease (e.g. "Early Blight - 82% confidence")
+  → Shows Organic Remedies, Chemical Remedies, and Prevention Tips
+  → Generates and downloads a professional PDF Health Report
+
+Think of it as: "Google Lens + Doctor's Prescription" for Indian farmers.
+
+--------------------------------------------------------------------------------
+2. WHERE TO FIND IT IN THE APP?
+--------------------------------------------------------------------------------
+
+Open the app → Click the tab called "🌿 Crop Doctor" in the top navigation bar.
+
+It sits next to: Browse Schemes | AI Assistant | PDF Wizard | Nearby Offices
+
+--------------------------------------------------------------------------------
+3. HOW DOES IT WORK? (Simple Flow)
+--------------------------------------------------------------------------------
+
+STEP 1 — Farmer uploads a crop image
+  ↓
+  Frontend (React) shows a drag-and-drop upload box.
+  Farmer selects their image (JPG/PNG/WebP, max 10MB).
+
+STEP 2 — Image sent to our backend
+  ↓
+  React sends the image to: POST /api/crop-doctor/analyze
+  The backend (Express.js) receives the file using Multer.
+  Multer stores it in memory (RAM) — no disk needed.
+  The image is converted to Base64 format.
+
+STEP 3 — Kindwise Crop Health API is called
+  ↓
+  Backend sends the Base64 image to:
+  https://crop.kindwise.com/api/v1/identification
+  with these parameters:
+    - health = "all"          (get complete health analysis)
+    - details = "treatment, common_names, description"
+    - disease_details = "treatment, classification"
+
+  Kindwise is an AI trained specifically on crop diseases.
+  It returns a JSON with: crop name, disease name, confidence %, and treatments.
+
+STEP 4 — Fill Missing Treatment Data (Smart Fallback)
+  ↓
+  IMPORTANT: Kindwise sometimes returns empty biological/chemical fields.
+  
+  When that happens → Our built-in Expert Disease Database kicks in.
+  We have 15+ disease categories pre-loaded with expert treatments:
+    • stem rust       • leaf rust       • early blight
+    • late blight     • powdery mildew  • downy mildew
+    • fusarium wilt   • anthracnose     • bacterial leaf blight
+    • mosaic virus    • leaf spot       • root rot
+    • whitefly        • aphid           • (default fallback)
+
+  If the disease matches any of these → instantly fill Organic + Chemical fields.
+  If Kindwise did return data → we use that directly, no fallback needed.
+
+STEP 5 — Results shown to farmer
+  ↓
+  Frontend displays:
+    ✅ Crop Name + Confidence %
+    ✅ Health Status (Healthy / Disease Detected badge)
+    ✅ Disease Name + Confidence %
+    ✅ About This Disease (description)
+    ✅ 🌿 Organic / Biological Remedy card
+    ✅ 🧪 Chemical Remedy card
+    ✅ 🛡️ Prevention Tips card
+    ✅ Other Possible Conditions list
+
+STEP 6 — Download PDF Report
+  ↓
+  Farmer clicks "⬇️ Download Full Report".
+  Frontend sends analysis data to: POST /api/crop-doctor/generate-pdf
+  Backend builds a PDF using PDFKit with:
+    - KRISHISETU Logo/Header
+    - Uploaded crop image embedded
+    - Disease diagnosis with confidence
+    - All remedy sections
+    - Footer disclaimer
+  PDF is streamed directly to the browser as a download.
+
+--------------------------------------------------------------------------------
+4. TECH STACK USED
+--------------------------------------------------------------------------------
+
+FRONTEND (React.js):
+  • React Hooks       — useState, useRef, useCallback for state management
+  • Axios             — HTTP requests to backend API
+  • CSS3              — Custom glass-morphism, animations, responsive design
+  • Google Fonts      — Inter font family for modern look
+
+BACKEND (Node.js / Express.js):
+  • Express.js        — REST API framework
+  • Multer            — Handles multipart/form-data (image uploads)
+  • Axios             — Calls Kindwise external API from backend
+  • PDFKit            — Generates styled PDF reports
+
+EXTERNAL API:
+  • Kindwise Crop Health API
+    URL    : https://crop.kindwise.com/api/v1/identification
+    Auth   : API Key in header ("Api-Key: <your_key>")
+    Input  : Base64 encoded image
+    Output : JSON with crop ID, disease, treatments
+
+BUILT-IN DATABASE:
+  • No external service — just JavaScript objects in cropDoctor.js
+  • 15 disease categories × (4 biological + 3 chemical remedies each)
+  • Fuzzy keyword matching (e.g. "Puccinia (stem rust)" → matches "stem rust")
+
+OPTIONAL (Gemini AI):
+  • Google Gemini 2.0 Flash — Secondary fallback if expert DB has no match
+  • Only called if disease not found in built-in database
+  • Uses GEMINI_API_KEY from .env
+
+--------------------------------------------------------------------------------
+5. FILE STRUCTURE — WHERE IS EACH PART?
+--------------------------------------------------------------------------------
+
+BACKEND:
+  LokSevaAI_MERN/
+  ├── backend/
+  │   ├── .env                          ← API keys stored here (never commit!)
+  │   ├── server.js                     ← Registers /api/crop-doctor route
+  │   └── routes/
+  │       └── cropDoctor.js             ← ALL LOGIC IS HERE
+  │           ├── DISEASE_TREATMENTS    (built-in expert database)
+  │           ├── getTreatmentFromDatabase()  (keyword matcher)
+  │           ├── fillMissingTreatments()     (fallback controller)
+  │           ├── analyzeWithKindwise()       (Kindwise API caller)
+  │           ├── parseKindwiseResult()       (parses API response)
+  │           ├── POST /analyze               (main analyze endpoint)
+  │           └── POST /generate-pdf          (PDF builder endpoint)
+
+FRONTEND:
+  LokSevaAI_MERN/
+  └── frontend/src/
+      ├── App.js                        ← Added "🌿 Crop Doctor" tab here
+      └── components/
+          ├── CropDoctor.js             ← Full React UI component
+          └── CropDoctor.css            ← All styling for this feature
+
+--------------------------------------------------------------------------------
+6. API ENDPOINTS (for Postman testing)
+--------------------------------------------------------------------------------
+
+[1] Analyze Crop Image
+    Method  : POST
+    URL     : http://localhost:5000/api/crop-doctor/analyze
+    Body    : form-data
+              key   = cropImage
+              value = <your image file>
+    Returns : JSON with full analysis
+              {
+                success: true,
+                analysis: {
+                  cropName, cropConfidence,
+                  isHealthy, diseaseName, diseaseConfidence,
+                  description,
+                  biological: [...],
+                  chemical: [...],
+                  prevention: [...],
+                  allDiseases: [...]
+                },
+                imageBase64: "...",
+                imageMimeType: "image/jpeg"
+              }
+
+[2] Generate PDF Report
+    Method  : POST
+    URL     : http://localhost:5000/api/crop-doctor/generate-pdf
+    Body    : JSON (raw)
+              {
+                "analysis": { ...use output from /analyze... },
+                "imageBase64": "...",
+                "imageMimeType": "image/jpeg"
+              }
+    Returns : PDF file (binary stream, triggers download)
+
+--------------------------------------------------------------------------------
+7. ENVIRONMENT VARIABLES NEEDED
+--------------------------------------------------------------------------------
+
+File: LokSevaAI_MERN/backend/.env
+
+  KINDWISE_API_KEY = <your kindwise key>
+    → Get free key at: https://kindwise.com
+    → Free tier: 100 requests/month (enough for demo)
+
+  GEMINI_API_KEY   = <your google gemini key>
+    → Get free key at: https://aistudio.google.com/apikey
+    → Used as: Optional secondary fallback
+    → Other project features (OCR, Scheme Sync) also need this key
+
+--------------------------------------------------------------------------------
+8. SMART FALLBACK SYSTEM — HOW IT DECIDES WHAT TO SHOW
+--------------------------------------------------------------------------------
+
+When Kindwise API returns empty treatment fields:
+
+  Kindwise biological = [] ──► Check disease name in DISEASE_TREATMENTS map
+                               e.g. "early blight" → returns 4 organic remedies
+                               e.g. "stem rust"    → returns 4 organic remedies
+                               e.g. Unknown        → returns default 4 remedies
+
+  No match found in map ─────► Try Gemini AI (if key available & no rate limit)
+
+  Gemini fails/unavailable ──► Use "default" remedies (generic but accurate)
+
+RESULT: The 3 remedy cards ALWAYS show data. Never empty.
+
+--------------------------------------------------------------------------------
+9. KNOWN ISSUES / LIMITATIONS
+--------------------------------------------------------------------------------
+
+  ⚠ Kindwise free tier: 100 requests/month
+    → For demo/hackathon this is fine
+    → Production needs paid plan
+
+  ⚠ Gemini API rate limit
+    → The free Gemini tier has per-minute limits
+    → Fixed by: Expert DB is now primary source (no rate limit risk)
+
+  ⚠ MongoDB auth error on server start
+    → Not related to Crop Doctor feature
+    → Crop Doctor does NOT use MongoDB (no database dependency)
+    → The error in terminal is safe to ignore for this feature
+
+  ⚠ Image must be a clear crop photo
+    → Tiny/blurry images may return low-confidence results
+    → Recommend: Natural daylight photos, 1-5 MB size
+
+--------------------------------------------------------------------------------
+10. QUICK TEST GUIDE (for team members)
+--------------------------------------------------------------------------------
+
+  1. Start backend:   cd LokSevaAI_MERN/backend  →  npm run dev
+  2. Start frontend:  cd LokSevaAI_MERN/frontend →  npm start
+  3. Open browser:    http://localhost:3000
+  4. Click tab:       "🌿 Crop Doctor"
+  5. Upload image:    Any crop leaf photo (tomato, wheat, rice, etc.)
+  6. Click:           "🔬 Analyze Crop Health"
+  7. Wait ~5-10 sec:  Results appear (disease name, all 3 remedy cards)
+  8. Click:           "⬇️ Download Full Report" → PDF saves to your computer
+
+  ✅ If you see disease name + all 3 cards filled = feature working perfectly!
+
+--------------------------------------------------------------------------------
+11. SAMPLE PDF REPORT STRUCTURE
+--------------------------------------------------------------------------------
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  🌿 AI CROPS DOCTOR — Health Assessment Report           │
+  │  Powered by KRISHISETU | Date: April 11, 2026            │
+  ├──────────────────────────────────────────────────────────┤
+  │  [Crop Photo]  │  Diagnosis Summary                      │
+  │                │  Crop: Tomato (89% confidence)          │
+  │                │  [DISEASE DETECTED badge]               │
+  │                │  Disease: Early Blight (82%)            │
+  ├──────────────────────────────────────────────────────────┤
+  │  📋 About this Disease                                   │
+  │  Early blight, caused by Alternaria solani...            │
+  ├──────────────────────────────────────────────────────────┤
+  │  🌿 Organic / Biological Remedy                          │
+  │  • Apply neem oil (5ml/litre)...                        │
+  │  • Spray Bacillus subtilis...                           │
+  ├──────────────────────────────────────────────────────────┤
+  │  🧪 Chemical Remedy                                      │
+  │  • Apply Mancozeb 75 WP (2g/litre)...                  │
+  │  • Spray Chlorothalonil 75 WP...                        │
+  ├──────────────────────────────────────────────────────────┤
+  │  🛡️ Prevention Tips                                      │
+  │  • Regular inspection of plants...                      │
+  ├──────────────────────────────────────────────────────────┤
+  │  🔍 Other Possible Conditions                            │
+  │  1. Tomato spotted wilt virus  17%                      │
+  │  2. Bacterial spots and speck  17%                      │
+  ├──────────────────────────────────────────────────────────┤
+  │  ⚠ AI-generated. Always consult an agronomist.          │
+  │  KRISHISETU — Empowering Indian Farmers with AI         │
+  └──────────────────────────────────────────────────────────┘
+
+================================================================================
+     END OF DOCUMENT
+================================================================================

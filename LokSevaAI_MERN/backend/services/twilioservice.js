@@ -3,10 +3,17 @@ const twilio = require("twilio");
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
 
-console.log("SID:", process.env.TWILIO_ACCOUNT_SID);
-console.log("TOKEN:", process.env.TWILIO_AUTH_TOKEN);
+let client = null;
+try {
+  if (accountSid && accountSid.startsWith('AC')) {
+    client = twilio(accountSid, authToken);
+  } else {
+    console.warn('[Twilio] SID not configured — WhatsApp notifications disabled.');
+  }
+} catch (e) {
+  console.warn('[Twilio] Could not initialize:', e.message);
+}
 
 /**
  * Send a WhatsApp message to a user listing their eligible schemes.
@@ -14,6 +21,10 @@ console.log("TOKEN:", process.env.TWILIO_AUTH_TOKEN);
  * @param {Array}  schemes      - Array of scheme objects
  */
 async function sendSchemeWhatsApp(userProfile, schemes) {
+  if (!client) {
+    console.warn('[Twilio] sendSchemeWhatsApp called but client not initialized.');
+    return null;
+  }
   const firstName = (userProfile.full_name || "there").split(" ")[0];
 
   // Build scheme list

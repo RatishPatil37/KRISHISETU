@@ -19,7 +19,7 @@ const cssAppend = `
 
 .high-contrast {
   filter: contrast(150%) saturate(0);
-  background: #000;
+  background: #444;
   color: #fff;
 }
 
@@ -27,7 +27,7 @@ const cssAppend = `
 .app.high-contrast .main-content, 
 .app.high-contrast .scheme-card, 
 .app.high-contrast .hero-section {
-  background: #000 !important;
+  background: #444 !important;
   color: #fff !important;
   border-color: #fff !important;
 }

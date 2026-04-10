@@ -80,9 +80,9 @@ const HARDCODED_ELIGIBLE_SCHEMES = [
 
 // Try Gemini with multiple model names
 const MODEL_CANDIDATES = [
+    "gemini-1.5-flash",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
 ];
 
 async function tryGeminiModels(genAI, prompt, imagePart) {

@@ -212,27 +212,19 @@ function AuthCallback() {
     return () => { cancelled = true; };
   }, []); // empty deps — run once on mount only
 
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: 'white',
-      fontSize: '18px'
-    }}>
-      <div style={{ marginBottom: '16px' }}>⏳</div>
-      {status}
-    </div>
-  );
+  return null;
 }
 
 
 function App() {
   const navigate = useNavigate();
-  const { user, signInWithGoogle, signOut } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user && !window.location.pathname.includes('/auth/callback')) {
+      window.location.href = 'http://localhost:5000/';
+    }
+  }, [user, authLoading]);
   const [schemes, setSchemes] = useState([
     {
       _id: 1,
@@ -519,7 +511,7 @@ function App() {
   const [whatsappStatus, setWhatsappStatus] = useState(null);
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
-  const [isHighContrast, setIsHighContrast] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Translation Helper
   const t = (key) => DICTIONARY[selectedLanguage]?.[key] || DICTIONARY['English'][key] || key;
@@ -793,7 +785,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={
-        <div className={`app ${isHighContrast ? 'high-contrast' : ''}`} style={{ fontSize: `${16 * fontSizeMultiplier}px` }}>
+        <div className={`app ${isDarkMode ? 'dark-mode' : ''}`} style={{ fontSize: `${16 * fontSizeMultiplier}px` }}>
           {/* Top Banner */}
           <div className="top-banner">
             <div className="top-banner-inner">
@@ -1550,15 +1542,15 @@ function App() {
                 <h4>Accessibility Tools</h4>
 
                 <div className="acc-section">
-                  <label>Contrast Adjustment</label>
+                  <label>Theme</label>
                   <div className="acc-grid">
-                    <div className={`acc-option ${!isHighContrast ? 'active' : ''}`} onClick={() => setIsHighContrast(false)}>
+                    <div className={`acc-option ${!isDarkMode ? 'active' : ''}`} onClick={() => setIsDarkMode(false)}>
                       <Sun size={20} />
-                      <span>Normal</span>
+                      <span>Light Mode</span>
                     </div>
-                    <div className={`acc-option ${isHighContrast ? 'active' : ''}`} onClick={() => setIsHighContrast(true)}>
+                    <div className={`acc-option ${isDarkMode ? 'active' : ''}`} onClick={() => setIsDarkMode(true)}>
                       <Moon size={20} />
-                      <span>High Contrast</span>
+                      <span>Dark Mode</span>
                     </div>
                   </div>
                 </div>

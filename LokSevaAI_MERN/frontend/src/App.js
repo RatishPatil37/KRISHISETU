@@ -7,6 +7,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from './supabase';
 import Profile from "./Pages/Profile";
 import VapiChatAssistant from './components/VapiChatAssistant';
+import MSPTracker from './components/MSPTracker';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, Sun, Moon, MessageCircle, Smartphone, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
@@ -983,6 +984,13 @@ function App() {
                 >
                   {t('tab_taaza')}
                 </button>
+                <button
+                  id="tab-msp-tracker"
+                  className={`tab ${activeTab === 'msp' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('msp')}
+                >
+                  📊 MSP Tracker
+                </button>
               </div>
 
               {/* Available Schemes */}
@@ -1506,6 +1514,13 @@ function App() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ─── MSP Tracker Tab ─── */}
+              {activeTab === 'msp' && (
+                <div className="tab-content">
+                  <MSPTracker />
                 </div>
               )}
             </main>

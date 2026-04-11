@@ -8,6 +8,7 @@ import { supabase } from './supabase';
 import Profile from "./Pages/Profile";
 import VapiChatAssistant from './components/VapiChatAssistant';
 import MSPTracker from './components/MSPTracker';
+import CropDoctor from './components/CropDoctor';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, Sun, Moon, MessageCircle, Smartphone, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
@@ -985,6 +986,13 @@ function App() {
                   {t('tab_taaza')}
                 </button>
                 <button
+                  id="tab-crop-doctor"
+                  className={`tab ${activeTab === 'crop-doctor' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('crop-doctor')}
+                >
+                  🌿 AI Crops Doctor
+                </button>
+                <button
                   id="tab-msp-tracker"
                   className={`tab ${activeTab === 'msp' ? 'active' : ''}`}
                   onClick={() => setActiveTab('msp')}
@@ -1514,6 +1522,13 @@ function App() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ─── AI Crops Doctor Tab ─── */}
+              {activeTab === 'crop-doctor' && (
+                <div className="tab-content">
+                  <CropDoctor />
                 </div>
               )}
 

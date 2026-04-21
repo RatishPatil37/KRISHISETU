@@ -87,16 +87,16 @@ router.post('/generate-pdf', (req, res) => {
 
     // ── TABLE HEADER ─────────────────────────────────────────────────────────
     const tableTop = 145;
-    const colWidths = { sno: 28, icon: 22, crop: 155, cat: 65, season: 55, msp: 75, prev: 65, inc: 65 };
+    // Icon column removed — emoji unsupported in pdfkit Helvetica font
+    const colWidths = { sno: 28, crop: 175, cat: 70, season: 57, msp: 78, prev: 68, inc: 69 };
     const colX = {
       sno:    40,
-      icon:   40 + colWidths.sno,
-      crop:   40 + colWidths.sno + colWidths.icon,
-      cat:    40 + colWidths.sno + colWidths.icon + colWidths.crop,
-      season: 40 + colWidths.sno + colWidths.icon + colWidths.crop + colWidths.cat,
-      msp:    40 + colWidths.sno + colWidths.icon + colWidths.crop + colWidths.cat + colWidths.season,
-      prev:   40 + colWidths.sno + colWidths.icon + colWidths.crop + colWidths.cat + colWidths.season + colWidths.msp,
-      inc:    40 + colWidths.sno + colWidths.icon + colWidths.crop + colWidths.cat + colWidths.season + colWidths.msp + colWidths.prev,
+      crop:   40 + colWidths.sno,
+      cat:    40 + colWidths.sno + colWidths.crop,
+      season: 40 + colWidths.sno + colWidths.crop + colWidths.cat,
+      msp:    40 + colWidths.sno + colWidths.crop + colWidths.cat + colWidths.season,
+      prev:   40 + colWidths.sno + colWidths.crop + colWidths.cat + colWidths.season + colWidths.msp,
+      inc:    40 + colWidths.sno + colWidths.crop + colWidths.cat + colWidths.season + colWidths.msp + colWidths.prev,
     };
     const ROW_H = 22;
 
@@ -105,7 +105,6 @@ router.post('/generate-pdf', (req, res) => {
 
     const headers = [
       { key: 'sno',    label: '#',              align: 'center' },
-      { key: 'icon',   label: '',               align: 'center' },
       { key: 'crop',   label: 'Crop Name',      align: 'left'   },
       { key: 'cat',    label: 'Category',       align: 'center' },
       { key: 'season', label: 'Season',         align: 'center' },
@@ -159,13 +158,11 @@ router.post('/generate-pdf', (req, res) => {
       doc.fillColor(GREY_MID).font('Helvetica').fontSize(8)
         .text(String(i + 1), colX.sno + 3, y + 7, { width: colWidths.sno - 6, align: 'center' });
 
-      // Icon (emoji — as text; PDFKit on some systems may show ?)
-      doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9)
-        .text(crop.icon || '-', colX.icon + 2, y + 6, { width: colWidths.icon, align: 'center' });
-
-      // Crop Name
+      // Crop Name — with colored left-accent dot instead of emoji
+      const dotColor = catColor[crop.category] || GREY_MID;
+      doc.circle(colX.crop + 5, y + ROW_H / 2, 3).fill(dotColor);
       doc.fillColor(GREY_DARK).font('Helvetica-Bold').fontSize(8.5)
-        .text(crop.name, colX.crop + 3, y + 7, { width: colWidths.crop - 6 });
+        .text(crop.name, colX.crop + 12, y + 7, { width: colWidths.crop - 16 });
 
       // Category pill
       doc.rect(colX.cat + 4, y + 5, colWidths.cat - 8, 12).fill(cc + '22');

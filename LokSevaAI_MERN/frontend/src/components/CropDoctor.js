@@ -167,10 +167,10 @@ export default function CropDoctor() {
       {/* ── Header ── */}
       <div className="cd-title">
         <h2>🌿 AI Crops Doctor</h2>
-        <span className="cd-badge">Kindwise AI</span>
+        <span className="cd-badge">Custom AI Model</span>
       </div>
       <p className="cd-subtitle">
-        Upload a crop photo — get instant disease diagnosis, treatment advice, and a downloadable PDF report.
+        Upload a crop photo — our custom AI model identifies the crop, then Gemini AI provides disease diagnosis, treatment advice, and a downloadable PDF report.
       </p>
 
       {/* ── Upload zone ── */}
@@ -370,7 +370,7 @@ export default function CropDoctor() {
 
           {/* ── Disclaimer ── */}
           <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 16, lineHeight: 1.6 }}>
-            ⚠️ This report is AI-generated. Always consult a certified agronomist before applying any treatment.
+            ⚠️ This report is AI-generated using Custom Crop_Model.pt + Gemini AI. Always consult a certified agronomist before applying any treatment.
           </p>
         </div>
       )}

@@ -1,0 +1,147 @@
+================================================================================
+  KRISHISETU — AI CROPS DOCTOR | SETUP & RUN GUIDE
+  Custom Model: Crop_Model.pt  (24-Class YOLOv8 Classifier)
+================================================================================
+
+AUTHOR  : Abbas (KRISHISETU Dev)
+DATE    : April 2026
+BRANCH  : Abbas
+
+work flow 
+User uploads image
+       ↓
+  Node.js (cropDoctor.js)
+       ↓
+  calls Python ← crop_model_inference.py  ← THIS FILE
+       ↓
+  Crop_Model.pt runs
+       ↓
+  Returns crop + disease name
+       ↓
+  Gemini generates treatment report
+
+
+================================================================================
+  SECTION 1 — INSTALL REQUIRED PYTHON PACKAGES  (one time only)
+================================================================================
+
+Open PowerShell and run these two commands (one at a time):
+
+  COMMAND 1 — Install PyTorch (CPU version):
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  pip install torch torchvision --index-url                              │
+  │      https://download.pytorch.org/whl/cpu                              │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  COMMAND 2 — Install ultralytics (required for YOLOv8 model):
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  pip install ultralytics                                                │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  COMMAND 3 — Install Pillow (image processing):
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  pip install Pillow                                                     │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  NOTE: These are ONE-TIME installs. You do NOT need to run them again.
+  ✅ All three must be installed before starting the website.
+
+
+================================================================================
+  SECTION 2 — RUN THE WEBSITE  (every time you want to start)
+================================================================================
+
+Open TWO separate PowerShell terminals and run ONE command in each:
+
+  ── TERMINAL 1 (Backend) ───────────────────────────────────────────────────
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  cd "c:\Users\MOHD ABBAS\OneDrive\Desktop\Project\KRISHISETU            │
+  │       \LokSevaAI_MERN\backend"                                          │
+  │  npm run dev                                                            │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  Wait until you see:  Server running on port 5000
+
+  ── TERMINAL 2 (Frontend) ──────────────────────────────────────────────────
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  cd "c:\Users\MOHD ABBAS\OneDrive\Desktop\Project\KRISHISETU            │
+  │       \LokSevaAI_MERN\frontend"                                         │
+  │  npm start                                                              │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  Wait until you see:  Compiled successfully!
+
+  Then open browser → http://localhost:3000
+
+
+================================================================================
+  SECTION 3 — HOW THE AI CROPS DOCTOR WORKS (for reference)
+================================================================================
+
+USER ACTION:
+  Go to website → AI Crops Doctor tab → Click "Choose File" → Upload crop image
+  → Click "Analyze Crop Health"
+
+WHAT HAPPENS AUTOMATICALLY:
+  1. Browser sends the uploaded image to our backend server
+  2. Backend saves image to a temporary file (auto-created, auto-deleted)
+  3. Backend calls Python with Crop_Model.pt on the temp image
+  4. Python returns: which crop + what disease + confidence (%)
+  5. Backend sends crop name + condition to Gemini AI
+  6. Gemini returns: disease description + biological treatment +
+                     chemical treatment + prevention tips
+  7. Results displayed on website
+  8. User can click "Download Full Report" to get a PDF
+
+NO MANUAL STEPS NEEDED — Just upload an image and click analyze.
+
+
+================================================================================
+  SECTION 4 — MODEL DETAILS
+================================================================================
+
+Model file  : Model\Crop_Model.pt
+Type        : YOLOv8 Classification model (ultralytics)
+Classes     : 24 (6 crop types × healthy + disease variants)
+Training    : 22,736 images | 2.67 GB dataset
+Input size  : 224 × 224 RGB image
+
+Crops covered:
+  Apple       → Apple Scab | Black Rot | Cedar Apple Rust | Healthy
+  Bell Pepper → Bacterial Spot | Healthy
+  Corn        → Common Rust | Gray Leaf Spot | Northern Leaf Blight | Healthy
+  Grape       → Black Measles | Black Rot | Leaf Blight | Healthy
+  Potato      → Early Blight | Late Blight | Healthy
+  Rice        → Brown Spot | Leaf Blast | Neck Blast | Healthy
+  Wheat       → Brown Rust | Yellow Rust | Healthy
+
+
+================================================================================
+  SECTION 5 — TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "No module named 'ultralytics'"
+FIX    : Run:  pip install ultralytics
+         Then RESTART the backend terminal (Ctrl+C → npm run dev)
+
+PROBLEM: "Cannot start Python" or "python not found"
+FIX    : Install Python from https://python.org
+         Tick "Add Python to PATH" during installation
+
+PROBLEM: "Model file not found"
+FIX    : Confirm file exists at:
+         KRISHISETU\Model\Crop_Model.pt
+
+PROBLEM: Website shows blank or loading after analyze
+FIX    : Check backend terminal for error messages
+         Make sure GEMINI_API_KEY is set in backend\.env
+
+PROBLEM: Analysis takes 10-20 seconds
+FIX    : Normal — CPU-only model inference takes time on first run
+         Subsequent analyses are faster
+
+================================================================================
+  END OF DOCUMENT
+================================================================================

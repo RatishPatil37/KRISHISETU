@@ -224,12 +224,10 @@ const DISEASE_TREATMENTS = {
 
 /**
  * Find matching treatment from built-in database using fuzzy keyword matching.
- * @param {string} diseaseName - Disease name from Kindwise API
  */
 function getTreatmentFromDatabase(diseaseName) {
   if (!diseaseName) return DISEASE_TREATMENTS['default'];
   const lower = diseaseName.toLowerCase();
-  // Exact or partial key match
   for (const key of Object.keys(DISEASE_TREATMENTS)) {
     if (key === 'default') continue;
     if (lower.includes(key) || key.split(' ').every(word => lower.includes(word))) {
@@ -248,13 +246,11 @@ async function fillMissingTreatments(parsed) {
   const needsChem = !parsed.chemical   || parsed.chemical.length   === 0;
   if (!needsBio && !needsChem) return parsed;
 
-  // Step 1: Try built-in expert database (instant, no API call)
   const dbEntry = getTreatmentFromDatabase(parsed.diseaseName);
   if (needsBio  && dbEntry.biological) parsed.biological = dbEntry.biological;
   if (needsChem && dbEntry.chemical)   parsed.chemical   = dbEntry.chemical;
   console.log('[CropDoctor] Filled from expert database for:', parsed.diseaseName);
 
-  // Step 2: If still missing (shouldn't happen), try Gemini as last resort
   const stillNeedsBio  = !parsed.biological || parsed.biological.length === 0;
   const stillNeedsChem = !parsed.chemical   || parsed.chemical.length   === 0;
   if (!stillNeedsBio && !stillNeedsChem) return parsed;
@@ -284,7 +280,7 @@ async function fillMissingTreatments(parsed) {
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (allowed.includes(file.mimetype)) cb(null, true);
@@ -300,18 +296,11 @@ async function analyzeWithKindwise(base64Image, mimeType) {
   if (!apiKey) throw new Error('KINDWISE_API_KEY is not set in .env');
 
   const imageData = `data:${mimeType};base64,${base64Image}`;
-
   const response = await axios.post(
     'https://crop.kindwise.com/api/v1/identification',
+    { images: [imageData] },
     {
-      images: [imageData]
-    },
-    {
-      headers: {
-        'Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      // Kindwise requires health/details as query string params, NOT in the body
+      headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },
       params: {
         health: 'all',
         details: 'treatment,common_names,description,cause',
@@ -320,69 +309,49 @@ async function analyzeWithKindwise(base64Image, mimeType) {
       timeout: 30000
     }
   );
-
   return response.data;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: Parse Kindwise API response into a clean report object
+// Helper: Parse Kindwise response into a clean report object
 // ─────────────────────────────────────────────────────────────────────────────
 function parseKindwiseResult(data) {
   const result = data.result || {};
-
-  // --- Crop / Plant ID ---
-  const cropSuggestion = result.crop?.suggestions?.[0] || {};
-  const cropName = cropSuggestion.name || 'Unknown Crop';
-  const cropConfidence = Math.round((cropSuggestion.probability || 0) * 100);
-  const commonNames = cropSuggestion.details?.common_names || [];
-
-  // --- Health Status ---
-  const isHealthy = result.is_healthy?.binary ?? null;
+  const cropSuggestion  = result.crop?.suggestions?.[0] || {};
+  const cropName        = cropSuggestion.name || 'Unknown Crop';
+  const cropConfidence  = Math.round((cropSuggestion.probability || 0) * 100);
+  const commonNames     = cropSuggestion.details?.common_names || [];
+  const isHealthy       = result.is_healthy?.binary ?? null;
   const healthProbability = Math.round((result.is_healthy?.probability || 0) * 100);
-
-  // --- Disease / Pest ---
   const diseaseSuggestions = result.disease?.suggestions || [];
   const topDisease = diseaseSuggestions[0] || null;
 
   let diseaseName = 'No disease detected';
   let diseaseConfidence = 0;
   let description = '';
-  let chemical = [];
-  let biological = [];
-  let prevention = [];
+  let chemical = [], biological = [], prevention = [];
 
   if (topDisease) {
     diseaseName = topDisease.name || 'Unknown Disease';
     diseaseConfidence = Math.round((topDisease.probability || 0) * 100);
-    const details = topDisease.details || {};
-    description = details.description || '';
-
+    const details   = topDisease.details || {};
+    description     = details.description || '';
     const treatment = details.treatment || {};
-    chemical = treatment.chemical || [];
-    biological = treatment.biological || [];
-    prevention = treatment.prevention || [];
-
-    // Fallback: flatten string arrays vs object arrays
+    chemical        = treatment.chemical   || [];
+    biological      = treatment.biological || [];
+    prevention      = treatment.prevention || [];
     const flatten = (arr) =>
       arr.map(item => (typeof item === 'string' ? item : item.name || JSON.stringify(item)));
-
-    chemical = flatten(chemical);
+    chemical   = flatten(chemical);
     biological = flatten(biological);
     prevention = flatten(prevention);
   }
 
   return {
-    cropName,
-    cropConfidence,
-    commonNames,
-    isHealthy,
-    healthProbability,
-    diseaseName,
-    diseaseConfidence,
-    description,
-    chemical,
-    biological,
-    prevention,
+    cropName, cropConfidence, commonNames,
+    isHealthy, healthProbability,
+    diseaseName, diseaseConfidence, description,
+    chemical, biological, prevention,
     allDiseases: diseaseSuggestions.slice(0, 3).map(d => ({
       name: d.name,
       confidence: Math.round((d.probability || 0) * 100)
@@ -400,21 +369,17 @@ router.post('/analyze', upload.single('cropImage'), async (req, res) => {
     }
 
     const base64Image = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
+    const mimeType    = req.file.mimetype;
+    const rawData     = await analyzeWithKindwise(base64Image, mimeType);
+    let parsed        = parseKindwiseResult(rawData);
 
-    const rawData = await analyzeWithKindwise(base64Image, mimeType);
-    let parsed = parseKindwiseResult(rawData);
-
-    // Log treatment data from Kindwise for debugging
     console.log('[CropDoctor] Kindwise biological:', parsed.biological?.length || 0, 'items');
     console.log('[CropDoctor] Kindwise chemical:',   parsed.chemical?.length   || 0, 'items');
 
-    // Fill missing biological/chemical with expert database (then Gemini as fallback)
     if (parsed.diseaseName && parsed.diseaseName !== 'No disease detected') {
       parsed = await fillMissingTreatments(parsed);
     }
 
-    // Return analysis + base64 image so frontend can embed in PDF request
     res.json({
       success: true,
       analysis: parsed,
@@ -423,7 +388,7 @@ router.post('/analyze', upload.single('cropImage'), async (req, res) => {
     });
 
   } catch (err) {
-    const kindwiseErr = err.response?.data;
+    const kindwiseErr    = err.response?.data;
     const kindwiseStatus = err.response?.status;
     console.error('[CropDoctor] Analyze error - Status:', kindwiseStatus);
     console.error('[CropDoctor] Analyze error - Body:', JSON.stringify(kindwiseErr));
@@ -435,6 +400,7 @@ router.post('/analyze', upload.single('cropImage'), async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route 2: POST /api/crop-doctor/generate-pdf
+// Professional A4 report — fixed layout, no emoji, dynamic card heights
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/generate-pdf', async (req, res) => {
   try {
@@ -444,233 +410,253 @@ router.post('/generate-pdf', async (req, res) => {
     }
 
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
-
-    // ── Response headers ──
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="CropDoctor_Report.pdf"');
     doc.pipe(res);
 
-    // ── Colour Palette ──
+    // ── Palette ──────────────────────────────────────────────────────────────
     const GREEN_DARK  = '#1a5c2e';
     const GREEN_MID   = '#2d7a47';
     const GREEN_LIGHT = '#e8f5ec';
     const AMBER       = '#b45309';
     const AMBER_BG    = '#fef3c7';
     const RED         = '#b91c1c';
-    const RED_BG      = '#fee2e2';
     const BLUE        = '#1e40af';
     const BLUE_BG     = '#dbeafe';
     const GREY_DARK   = '#1f2937';
     const GREY_MID    = '#6b7280';
     const WHITE       = '#ffffff';
 
-    const pageWidth = doc.page.width - 100; // usable width
+    const PW       = doc.page.width;   // 595
+    const PH       = doc.page.height;  // 842
+    const MARGIN   = 50;
+    const COL      = PW - MARGIN * 2;  // 495
+    const FOOTER_H = 60;
+    const SAFE_BTM = PH - FOOTER_H - 10;
 
-    // ════════════════════════════════════════════════
-    // HEADER BANNER
-    // ════════════════════════════════════════════════
-    doc.rect(0, 0, doc.page.width, 90).fill(GREEN_DARK);
+    // ── HELPERS ───────────────────────────────────────────────────────────────
 
-    // Logo circle
-    doc.circle(65, 45, 28).fill(GREEN_MID);
-    doc.fontSize(22).fillColor(WHITE).text('🌿', 50, 33, { width: 30, align: 'center' });
-
-    doc.fillColor(WHITE)
-      .fontSize(20).font('Helvetica-Bold')
-      .text('AI Crops Doctor', 105, 22);
-    doc.fontSize(10).font('Helvetica')
-      .text('Crop Health Assessment Report — Powered by KRISHISETU', 105, 48);
-
-    // Date
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    doc.fontSize(9).fillColor('#a7f3d0')
-      .text(`Report Generated: ${dateStr} at ${timeStr}`, 105, 66);
-
-    doc.moveDown(3);
-
-    // ════════════════════════════════════════════════
-    // CROP IMAGE + QUICK SUMMARY (side by side)
-    // ════════════════════════════════════════════════
-    const sectionY = 110;
-    const imgSize = 160;
-
-    // Image box
-    if (imageBase64) {
-      try {
-        const imgBuffer = Buffer.from(imageBase64, 'base64');
-        doc.image(imgBuffer, 50, sectionY, { width: imgSize, height: imgSize, fit: [imgSize, imgSize] });
-        doc.rect(50, sectionY, imgSize, imgSize).stroke(GREEN_MID);
-      } catch (e) {
-        doc.rect(50, sectionY, imgSize, imgSize).fill('#f3f4f6').stroke(GREEN_MID);
-        doc.fontSize(10).fillColor(GREY_MID).text('Image Preview', 50, sectionY + 70, { width: imgSize, align: 'center' });
-      }
-    }
-
-    // Summary panel
-    const summaryX = 230;
-    const summaryW = doc.page.width - summaryX - 50;
-    doc.rect(summaryX, sectionY, summaryW, imgSize).fill(GREEN_LIGHT).stroke(GREEN_MID);
-
-    doc.fillColor(GREEN_DARK).fontSize(13).font('Helvetica-Bold')
-      .text('Diagnosis Summary', summaryX + 12, sectionY + 12);
-
-    doc.fontSize(10).font('Helvetica')
-      .fillColor(GREY_DARK)
-      .text(`Crop Identified:`, summaryX + 12, sectionY + 34);
-    doc.font('Helvetica-Bold').fillColor(GREEN_DARK)
-      .text(`${analysis.cropName} (${analysis.cropConfidence}% confidence)`, summaryX + 12, sectionY + 48);
-
-    // Health badge
-    const healthLabel = analysis.isHealthy ? '✅  HEALTHY' : '🔴  DISEASE DETECTED';
-    const healthBg    = analysis.isHealthy ? GREEN_MID : RED;
-    doc.rect(summaryX + 12, sectionY + 68, summaryW - 24, 22).fill(healthBg);
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(10)
-      .text(healthLabel, summaryX + 12, sectionY + 73, { width: summaryW - 24, align: 'center' });
-
-    if (!analysis.isHealthy) {
-      doc.font('Helvetica').fillColor(GREY_DARK).fontSize(10)
-        .text(`Disease / Pest:`, summaryX + 12, sectionY + 99);
-      doc.font('Helvetica-Bold').fillColor(RED)
-        .text(`${analysis.diseaseName}`, summaryX + 12, sectionY + 112);
-      doc.font('Helvetica').fillColor(GREY_MID).fontSize(9)
-        .text(`Confidence: ${analysis.diseaseConfidence}%`, summaryX + 12, sectionY + 126);
-    }
-
-    if (analysis.commonNames?.length) {
-      doc.font('Helvetica').fillColor(GREY_MID).fontSize(8)
-        .text(`Also known as: ${analysis.commonNames.slice(0,3).join(', ')}`, summaryX + 12, sectionY + 142);
-    }
-
-    doc.y = sectionY + imgSize + 20;
-
-    // ════════════════════════════════════════════════
-    // Helper: draw a section card
-    // ════════════════════════════════════════════════
-    const drawCard = (title, emoji, items, bgColor, borderColor, textColor) => {
-      if (!items || items.length === 0) return;
-
-      const cardPad = 12;
-      const lineH = 16;
-      const titleH = 30;
-      const cardH = titleH + items.length * lineH + cardPad * 2 + 8;
-
-      if (doc.y + cardH > doc.page.height - 80) doc.addPage();
-
-      const cardY = doc.y;
-      // Background
-      doc.rect(50, cardY, pageWidth, cardH).fill(bgColor).stroke(borderColor);
-      // Title bar
-      doc.rect(50, cardY, pageWidth, titleH).fill(borderColor);
-      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(12)
-        .text(`${emoji}  ${title}`, 62, cardY + 9);
-
-      // Items
-      items.forEach((item, i) => {
-        const textY = cardY + titleH + cardPad + i * lineH;
-        doc.fillColor(textColor).font('Helvetica').fontSize(9.5)
-          .text(`•  ${item}`, 62, textY, { width: pageWidth - 24 });
-      });
-
-      doc.y = cardY + cardH + 12;
+    const drawFooter = () => {
+      const fy = PH - FOOTER_H;
+      doc.rect(0, fy, PW, FOOTER_H).fill(GREEN_DARK);
+      doc.fillColor('#a7f3d0').font('Helvetica').fontSize(7.5)
+        .text(
+          'DISCLAIMER: This report is AI-generated using Kindwise Crop Health API + Expert Disease Database. Always consult a certified agronomist before applying any treatment.',
+          MARGIN - 10, fy + 10, { width: PW - (MARGIN - 10) * 2, align: 'center' }
+        );
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(9)
+        .text(
+          'KRISHISETU  |  AI Crops Doctor  |  Empowering Indian Farmers with AI',
+          MARGIN - 10, fy + 34, { width: PW - (MARGIN - 10) * 2, align: 'center' }
+        );
     };
 
-    // ════════════════════════════════════════════════
-    // DESCRIPTION
-    // ════════════════════════════════════════════════
-    if (analysis.description) {
-      if (doc.y + 80 > doc.page.height - 80) doc.addPage();
-      doc.rect(50, doc.y, pageWidth, 24).fill(GREY_DARK);
-      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(11)
-        .text('📋  About the Disease', 62, doc.y - 18);
+    const ensureSpace = (needed) => {
+      if (doc.y + needed > SAFE_BTM) {
+        drawFooter();
+        doc.addPage();
+        doc.y = MARGIN;
+      }
+    };
 
-      doc.moveDown(0.3);
-      doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9.5)
-        .text(analysis.description, 50, doc.y, { width: pageWidth, align: 'justify' });
-      doc.moveDown(1);
+    const drawHeading = (text, bgColor) => {
+      ensureSpace(34);
+      const hy = doc.y;
+      doc.rect(MARGIN, hy, COL, 24).fill(bgColor);
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(10.5)
+        .text(text, MARGIN + 10, hy + 7, { width: COL - 20 });
+      doc.y = hy + 24 + 8;
+    };
+
+    const drawCard = (title, items, bgColor, borderColor) => {
+      if (!items || items.length === 0) return;
+      const PAD     = 12;
+      const TITLE_H = 26;
+
+      doc.font('Helvetica').fontSize(9);
+      let bodyH = PAD;
+      items.forEach(item => {
+        bodyH += doc.heightOfString(`\u2022  ${item}`, { width: COL - PAD * 2 }) + 6;
+      });
+      bodyH += PAD;
+      const cardH = TITLE_H + bodyH;
+
+      ensureSpace(cardH + 16);
+
+      const cardY = doc.y;
+      // Background + border accent
+      doc.rect(MARGIN, cardY, COL, cardH).fill(bgColor);
+      doc.rect(MARGIN, cardY, COL, TITLE_H).fill(borderColor);
+      // Left accent stripe
+      doc.rect(MARGIN, cardY, 4, cardH).fill(borderColor);
+
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(10.5)
+        .text(title, MARGIN + PAD + 4, cardY + 7, { width: COL - PAD * 2 - 4 });
+
+      let itemY = cardY + TITLE_H + PAD;
+      items.forEach(item => {
+        const txt = `\u2022  ${item}`;
+        const h   = doc.heightOfString(txt, { width: COL - PAD * 2 - 4, fontSize: 9 }) + 6;
+        doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9)
+          .text(txt, MARGIN + PAD + 4, itemY, { width: COL - PAD * 2 - 4 });
+        itemY += h;
+      });
+
+      doc.y = cardY + cardH + 14;
+    };
+
+    // ════════════════════════════════════════════════════════════
+    // (1) HEADER BANNER
+    // ════════════════════════════════════════════════════════════
+    doc.rect(0, 0, PW, 95).fill(GREEN_DARK);
+
+    doc.fillColor('#a7f3d0').font('Helvetica').fontSize(7.5)
+      .text(
+        'KRISHISETU  |  AI CROPS DOCTOR  |  CROP HEALTH ASSESSMENT REPORT',
+        MARGIN, 12, { width: COL, align: 'center' }
+      );
+    doc.rect(MARGIN, 23, COL, 0.5).fill('#2d7a47');
+
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(20)
+      .text('AI Crops Doctor', MARGIN, 32, { width: COL, align: 'center' });
+
+    doc.fillColor('#bbf7d0').font('Helvetica').fontSize(9.5)
+      .text('Powered by Kindwise Crop Health API & KRISHISETU Expert Disease Database', MARGIN, 57, {
+        width: COL, align: 'center'
+      });
+
+    const now     = new Date();
+    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    doc.fillColor('#6ee7b7').font('Helvetica').fontSize(8)
+      .text(`Report Date: ${dateStr}  at  ${timeStr}`, MARGIN, 75, { width: COL, align: 'center' });
+
+    // ════════════════════════════════════════════════════════════
+    // (2) CROP IMAGE + DIAGNOSIS SUMMARY — side by side
+    // ════════════════════════════════════════════════════════════
+    const sectionY = 108;
+    const IMG_SZ   = 150;
+    const SUM_X    = MARGIN + IMG_SZ + 18;
+    const SUM_W    = COL - IMG_SZ - 18;
+
+    if (imageBase64) {
+      try {
+        const buf = Buffer.from(imageBase64, 'base64');
+        doc.image(buf, MARGIN, sectionY, { width: IMG_SZ, height: IMG_SZ, fit: [IMG_SZ, IMG_SZ] });
+      } catch (_) {
+        doc.rect(MARGIN, sectionY, IMG_SZ, IMG_SZ).fill('#f3f4f6');
+        doc.fillColor(GREY_MID).font('Helvetica').fontSize(9)
+          .text('(Image unavailable)', MARGIN, sectionY + 65, { width: IMG_SZ, align: 'center' });
+      }
+      doc.rect(MARGIN, sectionY, IMG_SZ, IMG_SZ).stroke(GREEN_MID);
     }
 
-    // ════════════════════════════════════════════════
-    // SECTION CARDS
-    // ════════════════════════════════════════════════
-    const organicItems = analysis.biological?.length
+    doc.rect(SUM_X, sectionY, SUM_W, IMG_SZ).fill(GREEN_LIGHT).stroke(GREEN_MID);
+
+    doc.fillColor(GREEN_DARK).font('Helvetica-Bold').fontSize(11.5)
+      .text('Diagnosis Summary', SUM_X + 10, sectionY + 9);
+    doc.rect(SUM_X + 10, sectionY + 25, SUM_W - 20, 0.5).fill(GREEN_MID);
+
+    doc.fillColor(GREY_MID).font('Helvetica').fontSize(8)
+      .text('CROP IDENTIFIED', SUM_X + 10, sectionY + 32);
+    doc.fillColor(GREEN_DARK).font('Helvetica-Bold').fontSize(10)
+      .text(
+        `${analysis.cropName}  (${analysis.cropConfidence}% confidence)`,
+        SUM_X + 10, sectionY + 43, { width: SUM_W - 20 }
+      );
+
+    const badgeBg    = analysis.isHealthy ? GREEN_MID : RED;
+    const badgeLabel = analysis.isHealthy ? 'HEALTHY CROP' : 'DISEASE DETECTED';
+    doc.rect(SUM_X + 10, sectionY + 61, SUM_W - 20, 19).fill(badgeBg);
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(9.5)
+      .text(badgeLabel, SUM_X + 10, sectionY + 66, { width: SUM_W - 20, align: 'center' });
+
+    if (!analysis.isHealthy) {
+      doc.fillColor(GREY_MID).font('Helvetica').fontSize(8)
+        .text('DISEASE / PEST', SUM_X + 10, sectionY + 87);
+      doc.fillColor(RED).font('Helvetica-Bold').fontSize(9)
+        .text(analysis.diseaseName, SUM_X + 10, sectionY + 98, { width: SUM_W - 20 });
+      doc.fillColor(GREY_MID).font('Helvetica').fontSize(8)
+        .text(`Confidence: ${analysis.diseaseConfidence}%`, SUM_X + 10, sectionY + 112);
+    }
+
+    if (analysis.commonNames && analysis.commonNames.length > 0) {
+      const knY = analysis.isHealthy ? sectionY + 85 : sectionY + 126;
+      doc.fillColor(GREY_MID).font('Helvetica').fontSize(7.5)
+        .text(
+          `Also known as: ${analysis.commonNames.slice(0, 3).join(', ')}`,
+          SUM_X + 10, knY, { width: SUM_W - 20 }
+        );
+    }
+
+    doc.y = sectionY + IMG_SZ + 20;
+
+    // ════════════════════════════════════════════════════════════
+    // (3) ABOUT THE DISEASE
+    // ════════════════════════════════════════════════════════════
+    if (analysis.description) {
+      drawHeading('About the Disease', GREY_DARK);
+      const descH = doc.heightOfString(analysis.description, { width: COL, fontSize: 9.5 });
+      ensureSpace(descH + 20);
+      doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9.5)
+        .text(analysis.description, MARGIN, doc.y, { width: COL, align: 'justify' });
+      doc.moveDown(1.2);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // (4) REMEDY CARDS
+    // ════════════════════════════════════════════════════════════
+    const organicItems = (analysis.biological && analysis.biological.length)
       ? analysis.biological
       : ['No biological/organic treatment data available for this diagnosis.'];
 
-    const chemicalItems = analysis.chemical?.length
+    const chemicalItems = (analysis.chemical && analysis.chemical.length)
       ? analysis.chemical
       : ['No chemical treatment data available for this diagnosis.'];
 
-    const preventionItems = analysis.prevention?.length
+    const preventionItems = (analysis.prevention && analysis.prevention.length)
       ? analysis.prevention
-      : ['No prevention data available for this diagnosis.'];
+      : ['No prevention tips available for this diagnosis.'];
 
-    drawCard(
-      'Organic / Biological Remedy',
-      '🌿',
-      organicItems,
-      GREEN_LIGHT,
-      GREEN_MID,
-      GREY_DARK
-    );
+    drawCard('[ORGANIC / BIOLOGICAL REMEDY]  Natural & Bio-based Treatments', organicItems,    GREEN_LIGHT, GREEN_MID);
+    drawCard('[CHEMICAL REMEDY]  Approved Agrochemical Treatments',           chemicalItems,   AMBER_BG,    AMBER);
+    drawCard('[PREVENTION TIPS]  Proactive Crop Protection Measures',         preventionItems, BLUE_BG,     BLUE);
 
-    drawCard(
-      'Chemical Remedy',
-      '🧪',
-      chemicalItems,
-      AMBER_BG,
-      AMBER,
-      GREY_DARK
-    );
+    // ════════════════════════════════════════════════════════════
+    // (5) OTHER POSSIBLE CONDITIONS TABLE
+    // ════════════════════════════════════════════════════════════
+    if (analysis.allDiseases && analysis.allDiseases.length > 1) {
+      ensureSpace(70);
+      drawHeading('Other Possible Conditions', GREY_DARK);
 
-    drawCard(
-      'Prevention Tips',
-      '🛡️',
-      preventionItems,
-      BLUE_BG,
-      BLUE,
-      GREY_DARK
-    );
-
-    // ════════════════════════════════════════════════
-    // OTHER POSSIBLE DISEASES TABLE
-    // ════════════════════════════════════════════════
-    if (analysis.allDiseases?.length > 1) {
-      if (doc.y + 100 > doc.page.height - 80) doc.addPage();
-
-      doc.rect(50, doc.y, pageWidth, 26).fill(GREY_DARK);
-      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(11)
-        .text('🔍  Other Possible Conditions', 62, doc.y - 20);
-      doc.moveDown(0.4);
+      const tY  = doc.y;
+      const ROW = 20;
+      doc.rect(MARGIN, tY, COL, ROW).fill(GREEN_DARK);
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8.5)
+        .text('Condition / Disease Name', MARGIN + 8, tY + 5, { width: COL * 0.62 });
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8.5)
+        .text('AI Confidence', MARGIN + COL * 0.62, tY + 5, { width: COL * 0.35, align: 'right' });
+      doc.y = tY + ROW;
 
       analysis.allDiseases.forEach((d, i) => {
+        ensureSpace(ROW + 2);
         const rowBg = i % 2 === 0 ? '#f9fafb' : WHITE;
-        doc.rect(50, doc.y, pageWidth, 18).fill(rowBg).stroke('#e5e7eb');
-        doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9.5)
-          .text(`${i + 1}. ${d.name}`, 62, doc.y + 3);
-        doc.fillColor(d.confidence > 60 ? RED : GREY_MID).font('Helvetica-Bold')
-          .text(`${d.confidence}%`, 400, doc.y - 14, { width: 80, align: 'right' });
-        doc.moveDown(0.15);
+        const rowY  = doc.y;
+        doc.rect(MARGIN, rowY, COL, ROW).fill(rowBg).stroke('#e5e7eb');
+        doc.fillColor(GREY_DARK).font('Helvetica').fontSize(9)
+          .text(`${i + 1}.  ${d.name}`, MARGIN + 8, rowY + 5, { width: COL * 0.62 });
+        const cc = d.confidence > 60 ? RED : GREY_MID;
+        doc.fillColor(cc).font('Helvetica-Bold').fontSize(9)
+          .text(`${d.confidence}%`, MARGIN + COL * 0.62, rowY + 5, { width: COL * 0.35, align: 'right' });
+        doc.y = rowY + ROW;
       });
       doc.moveDown(1);
     }
 
-    // ════════════════════════════════════════════════
-    // FOOTER
-    // ════════════════════════════════════════════════
-    const footerY = doc.page.height - 55;
-    doc.rect(0, footerY, doc.page.width, 55).fill(GREEN_DARK);
-    doc.fillColor('#a7f3d0').font('Helvetica').fontSize(8)
-      .text(
-        '⚠️  This report is AI-generated using the Kindwise Crop Health API. Always consult a certified agronomist before applying treatments.',
-        30, footerY + 10, { width: doc.page.width - 60, align: 'center' }
-      );
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(9)
-      .text('KRISHISETU — AI Crops Doctor  |  Empowering Indian Farmers with AI', 30, footerY + 30, {
-        width: doc.page.width - 60, align: 'center'
-      });
-
+    // ════════════════════════════════════════════════════════════
+    // (6) FOOTER on last page
+    // ════════════════════════════════════════════════════════════
+    drawFooter();
     doc.end();
 
   } catch (err) {

@@ -299,5 +299,223 @@ RESULT: The 3 remedy cards ALWAYS show data. Never empty.
   └──────────────────────────────────────────────────────────┘
 
 ================================================================================
+     PART B — MSP TRACKER — FEATURE DOCUMENTATION
+     KRISHISETU Project | Companion Feature to AI Crops Doctor
+================================================================================
+
+LAST UPDATED : April 19, 2026
+AUTHOR       : Abbas
+STATUS       : Working & Deployed (localhost)
+
+--------------------------------------------------------------------------------
+12. WHAT IS MSP TRACKER?
+--------------------------------------------------------------------------------
+
+MSP = Minimum Support Price.
+
+  The Government of India (through the Cabinet Committee on Economic Affairs —
+  CCEA) announces a guaranteed purchase price for 23 major agricultural
+  commodities every season. If the market price falls below this level,
+  the government procures directly from farmers at the MSP.
+
+  This is a critical policy tool that:
+    → Protects farmers from distress selling
+    → Ensures price stability across seasons
+    → Covers Kharif (summer), Rabi (winter), and Commercial crops
+
+The MSP Tracker tab in KRISHISETU shows:
+  → All 22 notified crops with their 2025-26 / 2026-27 MSP
+  → Previous year MSP (for comparison)
+  → Absolute increase + percentage increase
+  → Filter by: Season | Crop Category | State / Region
+  → State chips — which states grow that crop
+  → Downloadable professional government-style PDF
+
+--------------------------------------------------------------------------------
+13. BACKGROUND / THEORY — WHY THIS FEATURE?
+--------------------------------------------------------------------------------
+
+PROBLEM STATEMENT:
+  Most Indian farmers don't know the official MSP for their crop.
+  They rely on word-of-mouth from middlemen who may quote lower prices.
+  This leads to:
+    • Farmers selling below MSP (exploitation by traders)
+    • Loss of income that government policy was meant to protect
+    • No awareness of year-over-year increase in support prices
+
+OUR SOLUTION:
+  A clean, searchable reference inside the farming app with:
+  1. All MSP data preloaded — no internet needed for the data
+  2. State-wise filter — a farmer in Punjab only cares about Punjab crops
+  3. Category filter — cereal farmers don't need to scroll past oilseeds
+  4. Season filter — Kharif season farmers filter only Kharif crops
+  5. PDF download — farmer can show this to a procurement officer as proof
+
+POLICY BACKGROUND:
+  CACP = Commission for Agricultural Costs & Prices
+  CACP recommends MSP to the government every year considering:
+    • Cost of production (A2+FL cost methodology)
+    • Demand-supply balance
+    • Price trends in domestic & international markets
+    • Terms of trade between agriculture and non-agriculture
+
+  The CCEA (Cabinet Committee on Economic Affairs) approves the final MSP.
+  MSP covers 23 mandated crops:
+    → 7 Cereals   (Paddy, Wheat, Maize, Jowar, Bajra, Ragi, Barley)
+    → 7 Pulses    (Tur, Moong, Urad, Gram, Lentil, Kulthi, Peas)
+    → 8 Oilseeds  (Groundnut, Rapeseed, Sunflower, Sesamum, Safflower, Nigerseed, Soyabean, Linseed)
+    → 4 Commercial (Sugarcane, Cotton, Raw Jute, Copra)
+
+  Our app covers the most commonly traded 22 crops.
+
+--------------------------------------------------------------------------------
+14. HOW THE MSP TRACKER WORKS (Simple Flow)
+--------------------------------------------------------------------------------
+
+STEP 1 — Data is preloaded in the component
+  ↓
+  All 22 MSP entries are hardcoded in MSP_DATA array in MSPTracker.js.
+  Each entry includes: name, category, season, msp, prev_msp, states[].
+  No backend call needed to display the data.
+
+STEP 2 — Farmer uses filters to narrow down
+  ↓
+  → Search box: type crop name or state (e.g. "Punjab" shows only Punjab crops)
+  → Season filter: Kharif | Rabi | Commercial | All
+  → Category dropdown: Cereals | Pulses | Oilseeds | Commercial | All
+  → Region dropdown: Select any Indian state → shows only that state's crops
+
+STEP 3 — State chips on each card
+  ↓
+  Each crop card shows up to 4 state names as clickable chips.
+  Clicking a state chip auto-applies the region filter.
+  Highlighted in green if it matches the current region filter.
+
+STEP 4 — Download PDF
+  ↓
+  Farmer clicks "Download PDF"
+  → Frontend sends the currently filtered crops array to:
+     POST /api/msp/generate-pdf
+  → Backend (Express.js + PDFKit) generates a professional
+     government-style table with columns:
+     S.No | Icon | Crop Name | Category | Season | MSP | Prev MSP | Increase
+  → PDF is streamed to browser as download
+  → PDF includes filter badges, disclaimer, CACP credit, KRISHISETU footer
+
+--------------------------------------------------------------------------------
+15. TECH STACK — MSP TRACKER
+--------------------------------------------------------------------------------
+
+FRONTEND (React.js):
+  Component   : MSPTracker.js
+  Stylesheet  : MSPTracker.css
+  State       : React Hooks (useState, useMemo) for filtering logic
+  HTTP        : Axios — sends filtered crop data to PDF backend endpoint
+  Data        : Static MSP_DATA array — 22 crops, all with states[]
+  UI          : Searchable cards, season pill buttons, two select dropdowns
+                (Category + Region), clickable state chips on each card
+
+  Key logic:
+  • useMemo() — recalculates displayed list only when filters change
+  • Region filter: crop.states.includes(selectedState)
+  • Category filter: crop.category === category
+  • Season filter: getSeasonKey(crop.season) === season
+  • Text search matches: crop name OR category OR state name
+
+BACKEND (Node.js / Express.js):
+  Route file  : LokSevaAI_MERN/backend/routes/msp.js
+  Registered  : POST /api/msp/generate-pdf  (via server.js)
+  PDF library : PDFKit — generates A4 table-format reports
+  Input       : { crops[], filterLabel, regionLabel, categoryLabel }
+  Output      : Binary PDF stream (Content-Type: application/pdf)
+
+  PDF layout:
+  • Dark green header bar with government tagline
+  • Filter badges row (Season / Region / Category / Total Crops)
+  • Table with styled header row + alternating row shading
+  • Category pills with distinct colours (Cereals/Pulses/Oilseeds/Commercial)
+  • MSP in green bold, increase shown as "+Rs.XX (X.X%)"
+  • Legend + summary row + green footer
+
+NO EXTERNAL API:
+  MSP data is static (verified from CACP official releases).
+  No external API. No rate limits. Works offline.
+  Data update: Edit MSP_DATA in MSPTracker.js each season.
+
+--------------------------------------------------------------------------------
+16. PAST APPROACH (Version History)
+--------------------------------------------------------------------------------
+
+VERSION 1 (Initial — April 11, 2026):
+  → PDF used html2pdf.js (screenshot-to-PDF approach)
+  → Problem: PDF was just a screenshot of the card grid UI
+  → Cards were hard to read in PDF (small text, cut off at page breaks)
+  → No Region or Category filter existed
+  → Only Season filter (Kharif | Rabi | Commercial | All)
+  
+VERSION 2 (Current — April 19, 2026):
+  → PDF replaced with backend PDFKit endpoint (proper table)
+  → PDF now looks like a government document, not a screenshot
+  → Added Region filter: 36 Indian state/UT options
+  → Added Category filter: Cereals | Pulses | Oilseeds | Commercial
+  → Added states[] field to all 22 crops in MSP_DATA
+  → Clickable state chips on each card for quick filtering
+  → Search now also matches state names
+  → Results info bar shows active filter context
+
+--------------------------------------------------------------------------------
+17. FILE STRUCTURE — MSP TRACKER
+--------------------------------------------------------------------------------
+
+BACKEND:
+  LokSevaAI_MERN/
+  ├── backend/
+  │   ├── server.js                     ← Registers /api/msp route
+  │   └── routes/
+  │       └── msp.js                    ← PDF generation with PDFKit table
+
+FRONTEND:
+  LokSevaAI_MERN/
+  └── frontend/src/
+      ├── App.js                        ← "📊 MSP Tracker" tab registered here
+      └── components/
+          ├── MSPTracker.js             ← React UI + filter logic + MSP_DATA
+          └── MSPTracker.css            ← All styles (cards, filters, chips)
+
+--------------------------------------------------------------------------------
+18. API ENDPOINTS — MSP TRACKER
+--------------------------------------------------------------------------------
+
+[1] Generate MSP PDF
+    Method  : POST
+    URL     : http://localhost:5000/api/msp/generate-pdf
+    Body    : JSON (raw)
+              {
+                "crops": [ ...filtered MSP_DATA items... ],
+                "filterLabel": "Kharif",
+                "regionLabel": "Punjab",
+                "categoryLabel": "Cereals"
+              }
+    Returns : PDF file (binary stream, triggers download)
+    Note    : Send only the currently visible/filtered crops
+
+--------------------------------------------------------------------------------
+19. TECH STACK COMPARISON — AI CROPS DOCTOR vs MSP TRACKER
+--------------------------------------------------------------------------------
+
+  Feature               | AI Crops Doctor             | MSP Tracker
+  ──────────────────────|─────────────────────────────|────────────────────────
+  Data Source           | Kindwise API (live)         | Static hardcoded array
+  External API          | Yes (Kindwise + Gemini)     | No (none)
+  Backend Required      | Yes (image upload + PDF)    | Only for PDF
+  PDF Method            | PDFKit (server-side)        | PDFKit (server-side)
+  Image Upload          | Yes (Multer, max 10MB)      | No
+  Real-time Analysis    | Yes (~5-10 sec)             | No (instant)
+  Filter Features       | None                        | Season + Category + Region
+  State Region Filter   | No                          | Yes (36 states/UTs)
+  Offline Capable       | No (needs API)              | Yes (data only)
+  Update Frequency      | Per crop upload             | Once per MSP season
+
+================================================================================
      END OF DOCUMENT
 ================================================================================

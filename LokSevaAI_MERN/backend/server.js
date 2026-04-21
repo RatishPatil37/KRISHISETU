@@ -39,10 +39,12 @@ const schemeRoutes = require('./routes/schemes');
 const userRoutes = require('./routes/users');
 const ocrRoutes = require('./routes/ocr');
 const cropDoctorRoutes = require('./routes/cropDoctor');
+const mspRoutes        = require('./routes/msp');
 app.use('/api/schemes', schemeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/crop-doctor', cropDoctorRoutes);
+app.use('/api/msp', mspRoutes);
 
 app.use(express.static(path.join(__dirname, '../../LokSevaAI/LandingPage')));
 

@@ -1,9 +1,17 @@
-require("dotenv").config();
+require("dotenv").config({ silent: true }); // silent: don't crash if no .env file
 const FirecrawlApp = require("@mendable/firecrawl-js").default;
 
-const firecrawl = new FirecrawlApp({
-  apiKey: process.env.FIRECRAWL_API_KEY
-});
+// Lazy init: create client on first use, not at require-time
+// This prevents crashes when FIRECRAWL_API_KEY comes from OS env (Docker)
+let _firecrawl = null;
+function getFirecrawl() {
+  if (!_firecrawl) {
+    _firecrawl = new FirecrawlApp({
+      apiKey: process.env.FIRECRAWL_API_KEY || ''
+    });
+  }
+  return _firecrawl;
+}
 
 let apiBlockedUntil = null;
 
@@ -40,7 +48,7 @@ const retryOperation = async (operation, maxRetries = 3, delay = 2000) => {
 async function scrapeSchemes() {
   const scrapeLogic = async () => {
     console.log("-> Triggering Firecrawl v2 Extract (Schemes)...");
-    const result = await firecrawl.extract({
+    const result = await getFirecrawl().extract({
       urls: ["https://www.myscheme.gov.in/"],
       prompt: "Extract the list of all available government schemes presented on the page including their names, summaries, and categories.",
       schema: {

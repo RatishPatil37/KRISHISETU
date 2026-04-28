@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/users');
 const Scheme = require('../models/Scheme');
-const { sendSchemeWhatsApp } = require('../services/twilioservice');
+const { sendSchemeWhatsApp } = require('../services/twilioService');
 
 router.post('/send-schemes', async (req, res) => {
   try {

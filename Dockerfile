@@ -14,6 +14,17 @@ COPY LokSevaAI_MERN/frontend/ ./
 
 # Build the production React app (with memory limit to prevent OOM in Docker)
 ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+# React bakes REACT_APP_* vars into the JS bundle at compile time.
+# These are PUBLIC keys (visible in browser anyway), safe to include here.
+ENV REACT_APP_SUPABASE_URL=https://ofvvofbpxwkrnowhzmoh.supabase.co
+ENV REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdnZvZmJweHdrcm5vd2h6bW9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjc1NzEsImV4cCI6MjA4ODY0MzU3MX0.sscHTe1AqEdqP1e80kx1yX5wzSZNQufueYrjda2gzZU
+ENV REACT_APP_GOOGLE_MAPS_API_KEY=AIzaSyCLRF3A-DDEcERrmi1jItH6rgyGpTYxw-0
+ENV REACT_APP_VAPI_PUBLIC_KEY=332d2014-a377-4efd-9787-3daaca164acf
+ENV REACT_APP_VAPI_ASSISTANT_ID=77ae3d95-2311-432d-b601-85f52a568ded
+ENV REACT_APP_BASE_URL=https://krishisetu-4b5y.onrender.com
+ENV GENERATE_SOURCEMAP=false
+
 RUN npm run build
 
 

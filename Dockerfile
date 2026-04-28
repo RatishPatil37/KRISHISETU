@@ -40,8 +40,8 @@ COPY LokSevaAI_MERN/backend ./backend
 
 # Copy the static Landing Page
 # server.js expects: path.join(__dirname, '../../LokSevaAI/LandingPage')
-# __dirname = /app/backend → ../../LokSevaAI/LandingPage = /app/LokSevaAI/LandingPage
-COPY LokSevaAI/LandingPage ./LokSevaAI/LandingPage
+# __dirname = /app/backend → ../../LokSevaAI/LandingPage = /LokSevaAI/LandingPage
+COPY LokSevaAI/LandingPage /LokSevaAI/LandingPage
 
 # Copy the built React app from Stage 1
 # server.js expects: path.join(__dirname, '../frontend/build')

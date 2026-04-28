@@ -70,9 +70,9 @@ async function parseSchemesFromMarkdown(markdownText) {
       throw new Error("GEMINI_API_KEY is not set in environment variables.");
     }
 
-    // Use gemini-2.5-flash which is fast and supports JSON schema structure
+    // Use gemini-1.5-flash — stable, fast and supports JSON schema responses
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: schemeSchema,
@@ -104,4 +104,35 @@ async function parseSchemesFromMarkdown(markdownText) {
   }
 }
 
-module.exports = { parseSchemesFromMarkdown };
+async function processSMSQuery(query, schemes) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Provide schemes as context for more accurate answers
+    const context = schemes.length > 0 
+      ? `Context Schemes: ${JSON.stringify(schemes.map(s => ({ name: s.scheme_name, summary: s.summary })))}`
+      : "No specific schemes provided as context.";
+
+    const prompt = `
+    You are the KrishiSetu AI Helpline Assistant.
+    A farmer is asking a question via SMS/WhatsApp: "${query}"
+    
+    ${context}
+    
+    INSTRUCTIONS:
+    - Provide a helpful, direct, and concise answer.
+    - If the user asks about eligibility, refer to the context schemes if they match.
+    - Keep it under 300 characters if possible.
+    - Use simple language.
+    - Do NOT use complex markdown.
+    `;
+
+    const result = await model.generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("Error in processSMSQuery:", error);
+    return "I am having trouble answering right now. Please try again later or reply 0 for the main menu.";
+  }
+}
+
+module.exports = { parseSchemesFromMarkdown, processSMSQuery };

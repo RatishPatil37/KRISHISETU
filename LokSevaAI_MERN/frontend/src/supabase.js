@@ -1,6 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://ofvvofbpxwkrnowhzmoh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdnZvZmJweHdrcm5vd2h6bW9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjc1NzEsImV4cCI6MjA4ODY0MzU3MX0.sscHTe1AqEdqP1e80kx1yX5wzSZNQufueYrjda2gzZU';
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Guard: fail fast in development if env vars are missing
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    '[KrishiSetu] Supabase credentials are missing. ' +
+    'Add REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY to frontend/.env'
+  );
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storageKey: 'krishisetu-auth',   // unique storage key — avoids conflicts with other Supabase apps
+    autoRefreshToken: true,          // silently refresh the JWT before it expires
+    persistSession: true,            // keep the session across page reloads
+    detectSessionInUrl: true,        // automatically parse the OAuth hash callback
+  },
+});

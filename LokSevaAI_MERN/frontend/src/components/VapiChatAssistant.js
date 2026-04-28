@@ -6,8 +6,8 @@ import './VapiChatAssistant.css';
 // Hardcoded Vapi initialization with Public Key provided by the user
 const vapi = new Vapi("f71004a5-4cfe-49f6-a1e1-de500c7b9f75");
 
-const VapiChatAssistant = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const VapiChatAssistant = ({ inline = false, language = 'English', dictionary = {} }) => {
+  const [isOpen, setIsOpen] = useState(inline); // Auto-open if inline
   const [isCallActive, setIsCallActive] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
@@ -20,8 +20,7 @@ const VapiChatAssistant = () => {
       setMessages(prev => [...prev, { role: 'system', content: 'Call connected.' }]);
 
       // Dynamically read language from UI without destroying the dashboard Assistant configuration
-      const langDropdown = document.querySelector('.language-select');
-      const activeLanguage = langDropdown ? langDropdown.value : 'their spoken language';
+      const activeLanguage = language || 'their spoken language';
 
       // Send a hidden system message purely to command the active Vapi session's language
       vapi.send({
@@ -73,7 +72,7 @@ const VapiChatAssistant = () => {
     return () => {
       vapi.removeAllListeners();
     };
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,7 +82,7 @@ const VapiChatAssistant = () => {
     if (isCallActive) {
       vapi.stop();
     } else {
-      setMessages(prev => [...prev, { role: 'system', content: 'Connecting (Please allow microphone)...' }]);
+      setMessages(prev => [...prev, { role: 'system', content: dictionary.vapi_error || 'Connecting (Please allow microphone)...' }]);
       try {
         // Minimal overrides to keep connection stable and avoid destructive model replacement
         const assistantOverrides = {
@@ -129,17 +128,17 @@ const VapiChatAssistant = () => {
   };
 
   return (
-    <div className="vapi-widget-container">
-      {isOpen && (
-        <div className="vapi-chat-window">
+    <div className={`vapi-widget-container ${inline ? 'inline' : ''}`}>
+      {(isOpen || inline) && (
+        <div className={`vapi-chat-window ${inline ? 'inline' : ''}`}>
           <div className="vapi-chat-header">
-            <h3>🤖 KrishiSetu Voice Agent</h3>
-            <button className="close-btn" onClick={() => setIsOpen(false)}>✕</button>
+            <h3>🤖 {inline ? dictionary.ai_assistant : 'KrishiSetu Voice Agent'}</h3>
+            {!inline && <button className="close-btn" onClick={() => setIsOpen(false)}>✕</button>}
           </div>
           
           <div className="vapi-chat-messages">
             {messages.length === 0 ? (
-              <p className="empty-message">Start a call or type a message!</p>
+              <p className="empty-message">{dictionary.voice_off_msg || 'Turn on Voice to start chatting'}</p>
             ) : (
               messages.map((msg, idx) => (
                 <div key={idx} className={`vapi-message ${msg.role}`}>
@@ -163,14 +162,14 @@ const VapiChatAssistant = () => {
               onClick={toggleCall}
               title={isCallActive ? "End Voice Call" : "Start Voice Call"}
             >
-              {isCallActive ? "⏹️ End Call" : "🎤 Start Voice"}
+              {isCallActive ? `⏹️ ${dictionary.end_call}` : `🎤 ${dictionary.start_voice}`}
             </button>
             <form onSubmit={handleSendText} className="text-form">
               <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isCallActive ? "Type here..." : "Turn on Voice to Text"}
+                placeholder={isCallActive ? dictionary.type_here : dictionary.voice_off_msg}
                 disabled={!isCallActive}
               />
               <button type="submit" disabled={!isCallActive || !inputText.trim()}>Send</button>
@@ -179,9 +178,9 @@ const VapiChatAssistant = () => {
         </div>
       )}
 
-      {!isOpen && (
+      {!isOpen && !inline && (
         <button className="vapi-floating-btn" onClick={() => setIsOpen(true)}>
-          🤖 Assistant
+          🤖 {dictionary.ai_assistant}
         </button>
       )}
     </div>

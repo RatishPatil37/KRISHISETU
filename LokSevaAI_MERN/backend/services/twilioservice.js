@@ -33,11 +33,22 @@ async function sendSchemeWhatsApp(userProfile, schemes) {
     `_Powered by Firecrawl · Gemini · LangGraph_`,
   ].join("\n");
 
-  // Normalize phone — ensure it starts with country code
-  let phone = userProfile.phone.replace(/\s+/g, "").replace(/[^\d+]/g, "");
-  if (!phone.startsWith("+")) {
-    phone = "+91" + phone; // default to India if no country code
+  // Normalize phone — handle Indian numbers (+91, 91, 0, or 10-digit)
+  let digits = userProfile.phone.replace(/\D/g, ""); // remove all non-digits
+  let phone = "";
+
+  if (digits.length === 10) {
+    phone = "+91" + digits;
+  } else if (digits.length === 11 && digits.startsWith("0")) {
+    phone = "+91" + digits.substring(1);
+  } else if (digits.length === 12 && digits.startsWith("91")) {
+    phone = "+" + digits;
+  } else {
+    // Fallback for other formats
+    phone = digits.startsWith("+") ? digits : "+" + digits;
   }
+
+  console.log(`Sending WhatsApp to: ${phone} (Original: ${userProfile.phone})`);
 
   const message = await client.messages.create({
     body,

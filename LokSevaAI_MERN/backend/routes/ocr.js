@@ -4,348 +4,413 @@ const multer = require('multer');
 const Tesseract = require('tesseract.js');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const User = require('../models/users');
-const Scheme = require('../models/Scheme');
 
-// Ensure uploads directory exists
+// ── Upload directory ─────────────────────────────────────────────
 const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const upload = multer({ dest: uploadDir });
+// Accept ALL common document types
+const upload = multer({
+    dest: uploadDir,
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+    fileFilter: (req, file, cb) => {
+        const allowed = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff',
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword', // .doc
+        ];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error(`Unsupported file type: ${file.mimetype}`));
+    }
+});
 
-// Helper to convert local file to GoogleGenerativeAI.Part
-function fileToGenerativePart(filePath, mimeType) {
-    return {
-        inlineData: {
-            data: Buffer.from(fs.readFileSync(filePath)).toString("base64"),
-            mimeType
-        },
-    };
-}
-
-// Hardcoded eligible schemes as fallback
+// ── Hardcoded eligible schemes (always shown as fallback) ────────
 const HARDCODED_ELIGIBLE_SCHEMES = [
-    {
-        name: 'PM Kisan Samman Nidhi',
-        portal: 'https://pmkisan.gov.in/',
-        benefit: '₹6,000/year direct transfer',
-        documents: '7/12 Extract, Aadhar Card, Bank Account'
-    },
-    {
-        name: 'PM Fasal Bima Yojana',
-        portal: 'https://pmfby.gov.in/',
-        benefit: 'Crop insurance at 2% premium',
-        documents: '7/12 Extract, Sowing Certificate, Bank Account'
-    },
-    {
-        name: 'Kisan Credit Card (KCC)',
-        portal: 'https://pmkisan.gov.in/KCCForm.aspx',
-        benefit: 'Credit up to ₹3 Lakh at 4% interest',
-        documents: '7/12 Extract, Aadhar Card, PAN Card'
-    },
-    {
-        name: 'Soil Health Card Scheme',
-        portal: 'https://soilhealth.dac.gov.in/',
-        benefit: 'Free soil testing and crop recommendations',
-        documents: '7/12 Extract, Aadhar Card'
-    },
-    {
-        name: 'Pradhan Mantri Krishi Sinchai Yojana',
-        portal: 'https://pmksy.gov.in/',
-        benefit: '55% subsidy on drip/sprinkler irrigation',
-        documents: '7/12 Extract, 8A Extract, Aadhar Card'
-    },
-    {
-        name: 'Gopinath Munde Shetkari Apghat Vima Yojana',
-        portal: 'https://krishi.maharashtra.gov.in/',
-        benefit: '₹2 Lakh accident insurance for farmers',
-        documents: '7/12 Extract, Aadhar Card, Age Proof'
-    },
-    {
-        name: 'Nanaji Deshmukh Krushi Sanjivani Yojana',
-        portal: 'https://pocra.mahait.org/',
-        benefit: '75% subsidy on farm ponds, polyhouse',
-        documents: '7/12 Extract, Aadhar Card, Bank Account'
-    },
-    {
-        name: 'Mahatma Jyotirao Phule Shetkari Karj Mukti',
-        portal: 'https://karjmafi.mahait.org/',
-        benefit: 'Loan waiver up to ₹2 Lakh',
-        documents: '7/12 Extract, Bank Loan Statement, Domicile Certificate'
-    }
+    { name: 'PM Kisan Samman Nidhi', portal: 'https://pmkisan.gov.in/', benefit: '₹6,000/year direct transfer', documents: '7/12 Extract, Aadhar Card, Bank Account' },
+    { name: 'PM Fasal Bima Yojana', portal: 'https://pmfby.gov.in/', benefit: 'Crop insurance at 2% premium', documents: '7/12 Extract, Sowing Certificate, Bank Account' },
+    { name: 'Kisan Credit Card (KCC)', portal: 'https://pmkisan.gov.in/KCCForm.aspx', benefit: 'Credit up to ₹3 Lakh at 4% interest', documents: '7/12 Extract, Aadhar Card, PAN Card' },
+    { name: 'Soil Health Card Scheme', portal: 'https://soilhealth.dac.gov.in/', benefit: 'Free soil testing & crop recommendations', documents: '7/12 Extract, Aadhar Card' },
+    { name: 'PM Krishi Sinchai Yojana', portal: 'https://pmksy.gov.in/', benefit: '55% subsidy on drip/sprinkler irrigation', documents: '7/12 Extract, 8A Extract, Aadhar Card' },
+    { name: 'Gopinath Munde Shetkari Vima Yojana', portal: 'https://krishi.maharashtra.gov.in/', benefit: '₹2 Lakh accident insurance', documents: '7/12 Extract, Aadhar Card, Age Proof' },
+    { name: 'Nanaji Deshmukh Krushi Sanjivani', portal: 'https://pocra.mahait.org/', benefit: '75% subsidy on farm ponds', documents: '7/12 Extract, Aadhar Card, Bank Account' },
+    { name: 'Shetkari Karj Mukti Yojana', portal: 'https://karjmafi.mahait.org/', benefit: 'Loan waiver up to ₹2 Lakh', documents: '7/12, Bank Statement, Domicile Cert' },
 ];
 
-// Try Gemini with multiple model names
-const MODEL_CANDIDATES = [
-    "gemini-1.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-];
-
-async function tryGeminiModels(genAI, prompt, imagePart) {
-    let lastError = null;
-    for (const modelName of MODEL_CANDIDATES) {
-        try {
-            console.log(`Trying model: ${modelName}`);
-            const model = genAI.getGenerativeModel({
-                model: modelName,
-                generationConfig: { responseMimeType: "application/json" }
-            });
-            const result = await model.generateContent([prompt, imagePart]);
-            const response = await result.response;
-            const text = response.text();
-            console.log(`Success with model: ${modelName}`);
-            return text;
-        } catch (err) {
-            console.warn(`Model ${modelName} failed: ${err.message}`);
-            lastError = err;
-        }
-    }
-    throw lastError;
+// ── Helper: file to Gemini inline data ──────────────────────────
+function fileToGenerativePart(filePath, mimeType) {
+    return { inlineData: { data: fs.readFileSync(filePath).toString('base64'), mimeType } };
 }
 
-// Step 1: Tesseract OCR for text extraction
+// ── STEP 1A: Google Cloud Vision API (REST) — Images ────────────
+async function runGoogleVisionOCR(filePath) {
+    const apiKey = process.env.GOOGLE_VISION_API_KEY;
+    if (!apiKey) return null;
+    try {
+        console.log('▶ Google Vision OCR...');
+        const imageBase64 = fs.readFileSync(filePath).toString('base64');
+        const response = await axios.post(
+            `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+            { requests: [{ image: { content: imageBase64 }, features: [{ type: 'DOCUMENT_TEXT_DETECTION' }] }] },
+            { timeout: 10000 }
+        );
+        // Check for billing/API errors in response body
+        const apiError = response.data.responses?.[0]?.error;
+        if (apiError) {
+            console.warn('Vision API response error:', apiError.message);
+            return null;
+        }
+        const text = response.data.responses[0]?.fullTextAnnotation?.text || '';
+        console.log(`✅ Google Vision: ${text.length} chars`);
+        return text.trim() || null;
+    } catch (err) {
+        const msg = err.response?.data?.error?.message || err.message || '';
+        // Billing not enabled — don't spam logs, just skip
+        if (msg.includes('billing') || msg.includes('PERMISSION_DENIED') || msg.includes('API_KEY_INVALID')) {
+            console.warn('⚠️  Google Vision skipped (billing/key issue). Using Tesseract instead.');
+        } else {
+            console.error('Vision OCR error:', msg);
+        }
+        return null;
+    }
+}
+
+// ── STEP 1B: pdf-parse — Digital PDFs ───────────────────────────
+async function extractPdfText(filePath) {
+    try {
+        console.log('▶ PDF text extraction (pdf-parse)...');
+        const pdfParse = require('pdf-parse');
+        const buffer = fs.readFileSync(filePath);
+        const result = await pdfParse(buffer);
+        const text = result.text?.trim();
+        console.log(`✅ PDF-Parse: ${text?.length || 0} chars`);
+        return (text && text.length > 30) ? text : null;
+    } catch (err) {
+        console.error('pdf-parse error:', err.message);
+        return null;
+    }
+}
+
+// ── STEP 1C: mammoth — DOCX/Word files ──────────────────────────
+async function extractDocxText(filePath) {
+    try {
+        console.log('▶ DOCX text extraction (mammoth)...');
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ path: filePath });
+        const text = result.value?.trim();
+        console.log(`✅ Mammoth: ${text?.length || 0} chars`);
+        return (text && text.length > 30) ? text : null;
+    } catch (err) {
+        console.error('Mammoth error:', err.message);
+        return null;
+    }
+}
+
+// ── STEP 1D: Tesseract — Primary offline OCR for images ──────────
 async function runTesseractOCR(filePath) {
     try {
-        console.log("Running Tesseract OCR...");
+        console.log('▶ Tesseract OCR (primary offline engine)...');
         const result = await Tesseract.recognize(filePath, 'eng+mar+hin', {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    console.log(`Tesseract: ${Math.round(m.progress * 100)}%`);
-                }
-            }
+            logger: m => { if (m.status === 'recognizing text') process.stdout.write(`\r   Tesseract: ${Math.round(m.progress * 100)}%`); }
         });
-        const text = result.data.text;
-        console.log(`Tesseract extracted ${text.length} chars`);
-        return text;
+        process.stdout.write('\n');
+        const text = result.data.text?.trim();
+        console.log(`✅ Tesseract: ${text?.length || 0} chars extracted`);
+        return (text && text.length > 20) ? text : null;
     } catch (err) {
-        console.error("Tesseract failed:", err.message);
-        return "";
+        console.error('Tesseract error:', err.message);
+        return null;
     }
 }
 
-router.post('/analyze-image', upload.single('document'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, error: 'No file uploaded.' });
+// ── STEP 2: Gemini — Structured extraction ───────────────────────
+// gemini-2.0-flash-lite has higher free quota; gemini-1.5-flash-latest is v1beta stable
+const MODEL_CHAIN = ['gemini-2.0-flash-lite', 'gemini-1.5-flash-latest', 'gemini-2.0-flash'];
+
+async function runGeminiStructuring(genAI, imagePart, rawOcrText) {
+    const ocrSection = rawOcrText
+        ? `\n\n=== RAW OCR TEXT (use this for precision) ===\n${rawOcrText.substring(0, 4000)}\n=== END OCR TEXT ===\n`
+        : '';
+
+    const prompt = `You are a world-class Indian government document analyst and OCR specialist.
+Carefully analyze the provided document. It may be a 7/12 Extract (Satbara), income certificate, Aadhar, ration card, or any govt document.
+Languages can be Marathi, Hindi, or English — handle all three.
+${ocrSection}
+Your job: Extract ALL fields below. Even if a field isn't labeled explicitly, INFER it from context (e.g., the first bold name at top of a 7/12 is usually the account holder).
+
+Return ONLY this JSON (no markdown, no code fences):
+{
+  "is_7_12": boolean,
+  "document_type": "string (e.g. 7/12 Extract, Income Certificate, Aadhar Card)",
+  "full_name": "string — REQUIRED. The primary person's name. Look for 'खातेदार', 'भोगवटादार', 'Name', the first person listed",
+  "district": "string — from जिल्हा / District field",
+  "taluka": "string — from तालुका / Taluka field",
+  "village": "string — from गाव / Village / मौजा field",
+  "survey_number": "string — गट क्र. / Survey No. / Gut No.",
+  "land_area": "string — क्षेत्रफळ / Total Area with units",
+  "estimated_annual_income": number (estimate ₹3,00,000 per hectare if unknown),
+  "mobile_number": "string or null",
+  "summary": "2-3 sentence English summary of what this document shows",
+  "eligible_schemes": ["scheme name 1", "scheme name 2"]
+}
+
+CRITICAL: full_name must NEVER be null or 'Unknown'. If it can't be found from labeled fields, take the first human name visible in the document.`;
+
+    let lastErr = null;
+    for (const model of MODEL_CHAIN) {
+        try {
+            console.log(`▶ Gemini model: ${model}`);
+            const m = genAI.getGenerativeModel({ model, generationConfig: { responseMimeType: 'application/json' } });
+            const parts = imagePart ? [prompt, imagePart] : [prompt];
+            const result = await m.generateContent(parts);
+            const text = result.response.text();
+            console.log(`✅ Gemini (${model}) responded`);
+            // Clean JSON (strip any accidental markdown)
+            const cleaned = text.replace(/```json|```/gi, '').trim();
+            return JSON.parse(cleaned);
+        } catch (err) {
+            console.warn(`✗ ${model}: ${err.message}`);
+            lastErr = err;
+        }
     }
+    throw lastErr;
+}
+
+// ── Main route ───────────────────────────────────────────────────
+router.post('/analyze-image', upload.single('document'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
 
     const filePath = req.file.path;
     const mimeType = req.file.mimetype;
+    const originalName = req.file.originalname || '';
+    const safeUnlink = () => { try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) {} };
+
+    console.log(`\n==============================`);
+    console.log(`📄 File: ${originalName} | MIME: ${mimeType}`);
+    console.log(`==============================`);
 
     try {
-        console.log(`Processing file: ${req.file.originalname} (${mimeType}) at ${filePath}`);
+        const isImage = mimeType.startsWith('image/');
+        const isPdf = mimeType === 'application/pdf';
+        const isDocx = mimeType.includes('wordprocessingml') || mimeType === 'application/msword' || originalName.match(/\.docx?$/i);
+        const geminiApiKey = process.env.GEMINI_API_KEY;
 
-        // === STEP 1: TESSERACT OCR ===
-        let tesseractText = "";
-        if (mimeType.startsWith('image/')) {
-            tesseractText = await runTesseractOCR(filePath);
-        }
-
-        // === STEP 2: TRY GEMINI AI ===
+        // ── Phase 1+2: Parallel extraction where possible ──────────
+        let rawOcrText = null;
+        let ocrSource = 'none';
         let geminiResult = null;
-        let geminiError = null;
-        const apiKey = process.env.GEMINI_API_KEY;
 
-        if (apiKey) {
-            try {
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const imagePart = fileToGenerativePart(filePath, mimeType);
+        if (isImage) {
+            // Phase 1: Run Tesseract (always works, offline) + Vision in parallel
+            const [tesseractText, visionText] = await Promise.all([
+                runTesseractOCR(filePath),
+                runGoogleVisionOCR(filePath),   // May return null if billing not enabled
+            ]);
+            // Prefer Vision (more accurate) if it returned results, else use Tesseract
+            rawOcrText = visionText || tesseractText;
+            ocrSource = visionText ? 'google-vision' : (tesseractText ? 'tesseract' : 'none');
+            console.log(`📝 OCR source chosen: ${ocrSource} (${rawOcrText?.length || 0} chars)`);
 
-                const prompt = `You are an expert Indian government document analyzer with mastery in Marathi, Hindi and English OCR.
-
-Analyze this uploaded document carefully. It could be:
-- A 7/12 Extract (Satbara Utara / गाव नमुना सात / भोगवटादार यादी)
-- A land record, mutation entry, or revenue document
-- Any other government document
-
-The document may be low quality, blurry, or scanned. It may be in Marathi, Hindi, or English.
-
-EXTRACT with maximum accuracy:
-- is_7_12: boolean
-- full_name: string (खातेदार/भोगवटादार/Account Holder)
-- district: string (जिल्हा)
-- taluka: string (तालुका)
-- village: string (गाव)
-- survey_number: string (गट क्रमांक / Survey No)
-- land_area: string (क्षेत्रफळ - include units)
-- estimated_annual_income: number (estimate ₹3,00,000 per hectare if not mentioned)
-- mobile_number: string (if visible)
-- document_type: string
-
-Also provide:
-- "summary": A clear English paragraph describing the document.
-- "eligible_schemes": An array of scheme names.
-
-RETURN ONLY VALID JSON.`;
-
-                const resultText = await tryGeminiModels(genAI, prompt, imagePart);
-                console.log("Gemini Raw Response:", resultText);
-
+            // Phase 2: Send to Gemini with both raw text and image
+            if (geminiApiKey) {
                 try {
-                    geminiResult = JSON.parse(resultText);
-                } catch (e) {
-                    console.error("JSON Parse Error:", e.message);
-                    geminiResult = null;
+                    const genAI = new GoogleGenerativeAI(geminiApiKey);
+                    const imagePart = fileToGenerativePart(filePath, mimeType);
+                    geminiResult = await runGeminiStructuring(genAI, imagePart, rawOcrText);
+                } catch (err) {
+                    const errMsg = err.message || '';
+                    if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+                        console.warn('⚠️  Gemini quota exceeded — using Tesseract text directly');
+                    } else {
+                        console.error('Gemini failed for image:', errMsg);
+                    }
                 }
-            } catch (err) {
-                console.error("Gemini AI failed entirely:", err.message);
-                geminiError = err.message;
             }
-        } else {
-            geminiError = "GEMINI_API_KEY not set in .env";
+        } else if (isPdf) {
+            rawOcrText = await extractPdfText(filePath);
+            ocrSource = rawOcrText ? 'pdf-parse' : 'none';
+            if (geminiApiKey) {
+                try {
+                    const genAI = new GoogleGenerativeAI(geminiApiKey);
+                    // For scanned PDFs with no extracted text, pass the PDF directly to Gemini Vision
+                    const imagePart = !rawOcrText ? fileToGenerativePart(filePath, 'application/pdf') : null;
+                    geminiResult = await runGeminiStructuring(genAI, imagePart, rawOcrText);
+                } catch (err) {
+                    const errMsg = err.message || '';
+                    if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+                        console.warn('⚠️  Gemini quota exceeded — using pdf-parse text directly');
+                    } else {
+                        console.error('Gemini failed for PDF:', errMsg);
+                    }
+                }
+            }
+        } else if (isDocx) {
+            rawOcrText = await extractDocxText(filePath);
+            ocrSource = rawOcrText ? 'mammoth' : 'none';
+            if (geminiApiKey && rawOcrText) {
+                try {
+                    const genAI = new GoogleGenerativeAI(geminiApiKey);
+                    geminiResult = await runGeminiStructuring(genAI, null, rawOcrText);
+                } catch (err) {
+                    const errMsg = err.message || '';
+                    if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+                        console.warn('⚠️  Gemini quota exceeded — using mammoth text directly');
+                    } else {
+                        console.error('Gemini failed for DOCX:', errMsg);
+                    }
+                }
+            }
         }
 
-        // === STEP 3: BUILD RESPONSE ===
-        // Clean up the file
-        fs.unlink(filePath, (err) => {
-            if (err) console.error("Unlink error:", err);
-        });
+        safeUnlink();
 
-        // CASE A: Gemini succeeded
-        if (geminiResult && !geminiResult.error) {
+        // ── Phase 3: Build response ─────────────────────────────
+        if (geminiResult) {
+            // Ensure full_name is never "Unknown" or null
+            if (!geminiResult.full_name || geminiResult.full_name.toLowerCase() === 'unknown' || geminiResult.full_name.toLowerCase() === 'null') {
+                geminiResult.full_name = rawOcrText ? extractNameFromText(rawOcrText) : 'See document';
+            }
+
             return res.json({
                 success: true,
-                insights: geminiResult.summary || "Document analyzed successfully with AI.",
-                extractedData: geminiResult.is_7_12 ? geminiResult : {
-                    ...geminiResult,
-                    is_7_12: true,
-                    document_type: geminiResult.document_type || "Government Document"
-                },
-                eligibleSchemes: geminiResult.eligible_schemes || HARDCODED_ELIGIBLE_SCHEMES.map(s => s.name),
+                insights: geminiResult.summary || 'Document analyzed successfully.',
+                extractedData: { ...geminiResult, document_source: ocrSource },
+                eligibleSchemes: geminiResult.eligible_schemes?.length ? geminiResult.eligible_schemes : HARDCODED_ELIGIBLE_SCHEMES.map(s => s.name),
                 hardcodedSchemes: HARDCODED_ELIGIBLE_SCHEMES,
-                source: 'gemini-ai'
+                source: `gemini+${ocrSource}`,
             });
         }
 
-        // CASE B: Gemini failed but Tesseract has text
-        if (tesseractText && tesseractText.trim().length > 20) {
-            const extractedData = parseBasicTextFields(tesseractText);
+        // ── Phase 4: Text-only fallback ─────────────────────────
+        if (rawOcrText) {
+            const basicData = parseBasicTextFields(rawOcrText);
             return res.json({
                 success: true,
-                insights: `Document scanned via OCR. Raw text extracted (${tesseractText.length} characters). AI enhancement unavailable.${geminiError ? ' (AI Error: ' + geminiError + ')' : ''}\n\n--- OCR Text ---\n${tesseractText.substring(0, 500)}`,
-                extractedData: extractedData,
+                insights: `Document scanned. Raw text extracted (${rawOcrText.length} chars). AI structuring unavailable.`,
+                extractedData: { ...basicData, document_source: ocrSource },
                 eligibleSchemes: HARDCODED_ELIGIBLE_SCHEMES.map(s => s.name),
                 hardcodedSchemes: HARDCODED_ELIGIBLE_SCHEMES,
-                ocrText: tesseractText,
-                source: 'tesseract-ocr'
+                source: ocrSource,
             });
         }
 
-        // CASE C: Both failed — still return hardcoded schemes for report
+        // ── Phase 5: Complete fallback — always return schemes ──
+        let fallbackMessage = '⚠️ Could not extract text from this document. Showing general scheme recommendations based on your profile.';
+        if (isPdf) {
+            fallbackMessage = '⚠️ AI processing quota hit. For scanned PDFs without text, please upload as an image (JPG/PNG) instead so we can use Tesseract/Vision OCR directly.';
+        }
+
         return res.json({
             success: true,
-            insights: `⚠️ Could not extract text from this document. ${geminiError ? 'AI Error: ' + geminiError : 'Upload a clearer image for better results.'}\n\nHowever, based on your profile, you may be eligible for the schemes listed below.`,
-            extractedData: {
-                is_7_12: true,
-                document_type: 'Uploaded Document',
-                full_name: 'From uploaded document',
-                summary: 'Document uploaded but text extraction was limited.'
-            },
+            insights: fallbackMessage,
+            extractedData: { is_7_12: false, document_type: isPdf ? 'Unsupported PDF' : 'Uploaded Document', full_name: 'Unknown User' },
             eligibleSchemes: HARDCODED_ELIGIBLE_SCHEMES.map(s => s.name),
             hardcodedSchemes: HARDCODED_ELIGIBLE_SCHEMES,
-            source: 'fallback'
+            source: 'fallback',
         });
 
-    } catch (processError) {
-        console.error("Document Process Error:", processError);
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-        // Even on total crash, return eligible schemes
+
+    } catch (err) {
+        safeUnlink();
+        console.error('Fatal route error:', err);
         return res.json({
             success: true,
-            insights: `⚠️ Processing error occurred: ${processError.message}\n\nBased on your profile, here are your eligible schemes:`,
-            extractedData: {
-                is_7_12: true,
-                document_type: 'Error - Fallback',
-                full_name: 'From uploaded document'
-            },
+            insights: `⚠️ Processing error: ${err.message}. Showing general recommendations.`,
+            extractedData: { is_7_12: false, full_name: null },
             eligibleSchemes: HARDCODED_ELIGIBLE_SCHEMES.map(s => s.name),
             hardcodedSchemes: HARDCODED_ELIGIBLE_SCHEMES,
-            source: 'error-fallback'
+            source: 'error-fallback',
         });
     }
 });
 
-// Basic text field extraction from OCR text
-function parseBasicTextFields(text) {
-    const data = {
-        is_7_12: false,
-        document_type: 'Scanned Document',
-        full_name: null,
-        district: null,
-        taluka: null,
-        village: null,
-        survey_number: null,
-        land_area: null,
-    };
-
-    // Detect 7/12
-    if (text.match(/7\/12|सातबारा|satbara|गाव.?नमुना|भोगवटा/i)) {
-        data.is_7_12 = true;
-        data.document_type = '7/12 Extract';
+// ── Helper: better name extraction from raw text ─────────────────
+function extractNameFromText(text) {
+    const lines = text.split('\n');
+    const patterns = [
+        /(?:name|नाव|नाम|खातेदार|भोगवटादार|श्री\.|श्रीमती|Mr\.|Mrs\.|Ms\.)\s*[:\-]?\s*([A-Za-z\u0900-\u097F\s]{3,40})/i
+    ];
+    for (const line of lines) {
+        for (const p of patterns) {
+            const m = line.match(p);
+            // Need >3 chars and ignore if it contains another label
+            if (m && m[1] && m[1].trim().length > 3 && !/गट|गाव|क्षेत्र|survey|taluka/i.test(m[1])) {
+                return m[1].replace(/[\n\r]/g, '').trim().substring(0, 50);
+            }
+        }
     }
+    // Fallback: literally just look for any sequence of words on the first few lines
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+        const l = lines[i].trim();
+        if (l.length > 5 && l.length < 40 && !/:|-|[0-9]/.test(l)) return l;
+    }
+    return null;
+}
 
-    // Try to extract survey number
-    const surveyMatch = text.match(/(?:गट\s*(?:क्र|नं)|survey\s*(?:no|number)|gut\s*no)[.:\s]*(\d+[\/\-]?\d*)/i);
-    if (surveyMatch) data.survey_number = surveyMatch[1];
-
-    // District
-    const districtMatch = text.match(/(?:जिल्हा|district)[.:\s]*([^\n,]+)/i);
-    if (districtMatch) data.district = districtMatch[1].trim();
-
-    // Taluka
-    const talukaMatch = text.match(/(?:तालुका|taluka)[.:\s]*([^\n,]+)/i);
-    if (talukaMatch) data.taluka = talukaMatch[1].trim();
-
-    // Village
-    const villageMatch = text.match(/(?:गाव|village|मौजा)[.:\s]*([^\n,]+)/i);
-    if (villageMatch) data.village = villageMatch[1].trim();
-
+// ── Helper: regex-based field parsing ────────────────────────────
+function parseBasicTextFields(text) {
+    const data = { is_7_12: false, document_type: 'Scanned Document', full_name: null, district: null, taluka: null, village: null, survey_number: null, land_area: null };
+    if (/7\/12|सातबारा|satbara|गाव.?नमुना|भोगवटा|७\/१२/i.test(text)) { data.is_7_12 = true; data.document_type = '7/12 Extract'; }
+    data.full_name = extractNameFromText(text) || 'Unknown User';
+    
+    // Make regex extremely lenient with spacing and dashes
+    const sm = text.match(/(?:गट\s*(?:क्र|नं)|survey\s*(?:no|number)|gut\s*no)[\s.:\-]*(\d+[\/\-]?\d*)/i);
+    if (sm) data.survey_number = sm[1];
+    
+    // Look for word characters (Eng or Marathi)
+    const dm = text.match(/(?:जिल्हा|district|dist)[\s.:\-]*([A-Za-z\u0900-\u097F]{3,20})/i);
+    if (dm) data.district = dm[1].trim();
+    
+    const tm = text.match(/(?:तालुका|taluka|tal|ता\.)[\s.:\-]*([A-Za-z\u0900-\u097F]{3,20})/i);
+    if (tm) data.taluka = tm[1].trim();
+    
+    const vm = text.match(/(?:गाव|village|मौजा)[\s.:\-]*([A-Za-z\u0900-\u097F]{3,20})/i);
+    if (vm) data.village = vm[1].trim();
+    
+    const am = text.match(/(?:क्षेत्रफळ|area|hectare|एकूण\s*क्षेत्र)[\s.:\-]*([\d.]+\s*(?:H|ha|hectare|R|Ar|guntha)?)/i);
+    if (am) data.land_area = am[1].trim();
     return data;
 }
 
-// Sync profile with categorization
+// ── Sync to profile route ─────────────────────────────────────────
 router.post('/sync-profile', async (req, res) => {
+    const { uid, extractedData } = req.body;
+    if (!uid) return res.status(400).json({ success: false, error: 'Missing uid.' });
+    if (!extractedData) return res.status(400).json({ success: false, error: 'Missing extractedData.' });
+
     try {
-        const { uid, extractedData } = req.body;
-        if (!uid || !extractedData) {
-            return res.status(400).json({ success: false, error: "Missing data." });
-        }
-
-        let category = "Middle Class";
+        let income_category = 'Middle Class';
         if (extractedData.estimated_annual_income) {
-            const income = Number(extractedData.estimated_annual_income);
-            if (income < 150000) category = "Backward Class";
-            else if (income > 800000) category = "Higher Class";
+            const inc = Number(extractedData.estimated_annual_income);
+            if (inc < 150000) income_category = 'Backward Class';
+            else if (inc > 800000) income_category = 'Higher Class';
         }
 
-        const updateData = {
-            full_name: extractedData.full_name,
-            district: extractedData.district,
-            taluka: extractedData.taluka,
-            village: extractedData.village,
-            survey_number: extractedData.survey_number,
-            land_area: extractedData.land_area,
-            income_category: category,
-            phone: extractedData.mobile_number
+        const update = {
+            full_name: extractedData.full_name || undefined,
+            district:  extractedData.district  || undefined,
+            taluka:    extractedData.taluka     || undefined,
+            village:   extractedData.village    || undefined,
+            survey_number: extractedData.survey_number || undefined,
+            land_area: extractedData.land_area  || undefined,
+            income_category,
+            phone: extractedData.mobile_number  || undefined,
         };
-
-        Object.keys(updateData).forEach(key => (updateData[key] == null) && delete updateData[key]);
+        // Strip undefined
+        Object.keys(update).forEach(k => update[k] === undefined && delete update[k]);
 
         const updatedUser = await User.findOneAndUpdate(
             { user_id: uid },
-            { $set: updateData },
-            { new: true, upsert: true }
+            { $set: update },
+            { new: true, upsert: true, maxTimeMS: 10000 } // 10s DB timeout
         );
-
-        res.json({ success: true, user: updatedUser });
+        return res.json({ success: true, user: updatedUser });
     } catch (error) {
-        console.error("Sync error:", error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Sync error:', error);
+        return res.status(500).json({ success: false, error: error.message });
     }
 });
 

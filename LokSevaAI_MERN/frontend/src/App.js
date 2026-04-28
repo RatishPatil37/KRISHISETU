@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -8,8 +8,18 @@ import { supabase } from './supabase';
 import Profile from "./Pages/Profile";
 import VapiChatAssistant from './components/VapiChatAssistant';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, Sun, Moon, MessageCircle, Smartphone, Download } from 'lucide-react';
+import { 
+  AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, 
+  Sun, Moon, MessageCircle, Smartphone, Download, Filter, Search, RefreshCcw, 
+  ClipboardList, FileSearch, CalendarDays, IndianRupee, CircleHelp, CheckCircle2, 
+  Scale, Zap, Sparkles, Shield, Shuffle, MapPin, Home, User, ArrowRight, ArrowLeft, X,
+  Building2, Building, Sprout, Landmark, Mail, Inbox, Folder, BookOpen, Bot, Lightbulb, Flame, Newspaper
+} from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import LocationMap from './components/LocationMap';
+import CropDoctor from './components/CropDoctor';
+import MSPTracker from './components/MSPTracker';
+import Marketplace from './Pages/Marketplace';
 
 // Language Dictionary for Dynamic Translation
 const DICTIONARY = {
@@ -35,7 +45,39 @@ const DICTIONARY = {
     language_header: "LANGUAGE",
     filters_header: "SCHEME FILTERS",
     tab_taaza: "Taaza Khabar",
-    taaza_desc: "Latest notifications and news regarding government schemes in India."
+    taaza_desc: "Latest notifications and news regarding government schemes in India.",
+    tab_crop_doctor: "AI Crops Doctor",
+    tab_msp: "MSP Tracker",
+    tab_marketplace: "Community Marketplace",
+    market_title: "Community Marketplace",
+    market_subtitle: "Direct from farmers to you. Zero commission.",
+    list_produce: "List My Produce",
+    loading_market: "Loading marketplace...",
+    no_products: "No products found in this category. Be the first to list!",
+    your_listing: "Your Listing",
+    call: "Call",
+    whatsapp: "WhatsApp",
+    remove: "Remove",
+    confirm_delete: "Are you sure you want to delete this listing?",
+    list_your_produce: "List Your Produce",
+    product_name: "Product Name",
+    category: "Category",
+    quantity: "Quantity Available",
+    price: "Price (₹)",
+    unit: "Unit",
+    location: "Location",
+    product_image: "Product Image",
+    upload_photo: "Upload Product Photo",
+    image_selected: "Image Selected",
+    description: "Full Description",
+    cancel: "Cancel",
+    post_listing: "Post Listing",
+    ai_assistant: "AI Assistant",
+    start_voice: "Start Voice",
+    end_call: "End Call",
+    type_here: "Type here...",
+    voice_off_msg: "Turn on Voice to start chatting",
+    vapi_error: "Connecting (Please allow microphone)..."
   },
   'हिंदी': {
     title: "अपना सरकारी लाभ खोजें",
@@ -59,7 +101,39 @@ const DICTIONARY = {
     language_header: "भाषा",
     filters_header: "फिल्टर्स",
     tab_taaza: "ताज़ा ख़बर",
-    taaza_desc: "भारत में सरकारी योजनाओं के बारे में नवीनतम सूचनाएं और समाचार।"
+    taaza_desc: "भारत में सरकारी योजनाओं के बारे में नवीनतम सूचनाएं और समाचार।",
+    tab_crop_doctor: "एआई फसल डॉक्टर",
+    tab_msp: "एमएसपी ट्रैकर",
+    tab_marketplace: "सामुदायिक बाज़ार",
+    market_title: "सामुदायिक बाज़ार",
+    market_subtitle: "किसानों से सीधे आप तक। शून्य कमीशन।",
+    list_produce: "अपनी उपज सूचीबद्ध करें",
+    loading_market: "बाज़ार लोड हो रहा है...",
+    no_products: "इस श्रेणी में कोई उत्पाद नहीं मिला। पहले आप सूचीबद्ध करें!",
+    your_listing: "आपकी सूची",
+    call: "कॉल करें",
+    whatsapp: "व्हाट्सएप",
+    remove: "हटाएं",
+    confirm_delete: "क्या आप वाकई इस सूची को हटाना चाहते हैं?",
+    list_your_produce: "अपनी उपज सूचीबद्ध करें",
+    product_name: "उत्पाद का नाम",
+    category: "श्रेणी",
+    quantity: "उपलब्ध मात्रा",
+    price: "कीमत (₹)",
+    unit: "इकाई",
+    location: "स्थान",
+    product_image: "उत्पाद की छवि",
+    upload_photo: "उत्पाद फोटो अपलोड करें",
+    image_selected: "छवि चयनित",
+    description: "पूरा विवरण",
+    cancel: "रद्द करें",
+    post_listing: "सूची पोस्ट करें",
+    ai_assistant: "एआई सहायक",
+    start_voice: "आवाज शुरू करें",
+    end_call: "कॉल समाप्त करें",
+    type_here: "यहाँ टाइप करें...",
+    voice_off_msg: "चैट शुरू करने के लिए आवाज चालू करें",
+    vapi_error: "जुड़ रहा है (कृपया माइक्रोफ़ोन की अनुमति दें)..."
   },
   'मराठी': {
     title: "तुमचा सरकारी लाभ शोधा",
@@ -67,7 +141,7 @@ const DICTIONARY = {
     tab_browse: "योजना शोधा",
     tab_ai: "AI सहाय्यक + व्हॉइस",
     tab_fraud: "फसवणूक हीटमॅप",
-    tab_pdf: "PDF विश्लेषक",
+    tab_pdf: "PDF विश्లేषक",
     tab_location: "जवळची कार्यालये",
     active_schemes: "सक्रिय योजना",
     categories: "श्रेण्या",
@@ -83,7 +157,39 @@ const DICTIONARY = {
     language_header: "भाषा",
     filters_header: "फिल्टर्स",
     tab_taaza: "ताजी बातमी",
-    taaza_desc: "भारतातील सरकारी योजनांबद्दलच्या नवीनतम सूचना आणि बातम्या."
+    taaza_desc: "भारतातील सरकारी योजनांबद्दलच्या नवीनतम सूचना आणि बातम्या.",
+    tab_crop_doctor: "एआई पीक डॉक्टर",
+    tab_msp: "एमएसपी ट्रॅकर",
+    tab_marketplace: "सामुदायिक बाजार",
+    market_title: "सामुदायिक बाजार",
+    market_subtitle: "शेतकऱ्यांकडून थेट तुमच्यापर्यंत. शून्य कमिशन.",
+    list_produce: "माझी उपज सूचीबद्ध करा",
+    loading_market: "बाजार लोड होत आहे...",
+    no_products: "या श्रेणीमध्ये कोणतीही उत्पादने आढळली नाहीत. सूचीबद्ध करणारे पहिले व्हा!",
+    your_listing: "तुमची सूची",
+    call: "कॉल करा",
+    whatsapp: "व्हॉट्सॲप",
+    remove: "काढून टाका",
+    confirm_delete: "तुम्हाला खात्री आहे की तुम्ही ही सूची हटवू इच्छिता?",
+    list_your_produce: "तुमची उपज सूचीबद्ध करा",
+    product_name: "उत्पादनाचे नाव",
+    category: "श्रेणी",
+    quantity: "उपलब्ध प्रमाण",
+    price: "किंमत (₹)",
+    unit: "एकक",
+    location: "स्थान",
+    product_image: "उत्पादनाची प्रतिमा",
+    upload_photo: "उत्पादन फोटो अपलोड करा",
+    image_selected: "प्रतिमा निवडली",
+    description: "पूर्ण वर्णन",
+    cancel: "रद्द करा",
+    post_listing: "सूची पोस्ट करा",
+    ai_assistant: "AI सहाय्यक",
+    start_voice: "आवाज सुरू करा",
+    end_call: "कॉल समाप्त करा",
+    type_here: "येथे टाइप करा...",
+    voice_off_msg: "चॅटिंग सुरू करण्यासाठी आवाज चालू करा",
+    vapi_error: "कनेक्ट होत आहे (कृपया मायक्रोफोनला परवानगी द्या)..."
   },
   'தமிழ்': {
     title: "உங்கள் அரசு நன்மையை கண்டறியவும்",
@@ -107,7 +213,39 @@ const DICTIONARY = {
     language_header: "மொழி",
     filters_header: "திட்ட வடிப்பான்கள்",
     tab_taaza: "சமீபத்திய செய்திகள்",
-    taaza_desc: "இந்தியாவில் உள்ள அரசு திட்டங்கள் குறித்த சமீபத்திய அறிவிப்புகள் மற்றும் செய்திகள்."
+    taaza_desc: "இந்தியாவில் உள்ள அரசு திட்டங்கள் குறித்த சமீபத்திய அறிவிப்புகள் மற்றும் செய்திகள்.",
+    tab_crop_doctor: "AI பயிர் மருத்துவர்",
+    tab_msp: "MSP டிராக்கர்",
+    tab_marketplace: "சமூக சந்தை",
+    market_title: "சமூக சந்தை",
+    market_subtitle: "விவசாயிகளிடமிருந்து நேரடியாக உங்களுக்கு. பூஜ்ஜிய கமிஷன்.",
+    list_produce: "எனது விளைபொருட்களை பட்டியலிடுங்கள்",
+    loading_market: "சந்தை ஏற்றப்படுகிறது...",
+    no_products: "இந்த பிரிவில் எந்த தயாரிப்புகளும் காணப்படவில்லை. முதலில் பட்டியலிடுங்கள்!",
+    your_listing: "உங்கள் பட்டியல்",
+    call: "அழைப்பு",
+    whatsapp: "வாட்ஸ்அப்",
+    remove: "நீக்கு",
+    confirm_delete: "இந்த பட்டியலை நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
+    list_your_produce: "உங்கள் விளைபொருட்களை பட்டியலிடுங்கள்",
+    product_name: "தயாரிப்பு பெயர்",
+    category: "வகை",
+    quantity: "கிடைக்கும் அளவு",
+    price: "விலை (₹)",
+    unit: "அலகு",
+    location: "இடம்",
+    product_image: "தயாரிப்பு படம்",
+    upload_photo: "தயாரிப்பு புகைப்படத்தை பதிவேற்றவும்",
+    image_selected: "படம் தேர்ந்தெடுக்கப்பட்டது",
+    description: "முழு விளக்கம்",
+    cancel: "ரத்து செய்",
+    post_listing: "பட்டியலை இடுங்கள்",
+    ai_assistant: "AI உதவியாளர்",
+    start_voice: "குரலைத் தொடங்கு",
+    end_call: "அழைப்பை முடி",
+    type_here: "இங்கே தட்டச்சு செய்க...",
+    voice_off_msg: "அரட்டையடிக்க குரலை இயக்கவும்",
+    vapi_error: "இணைகிறது (தயவுசெய்து மைக்ரோஃபோனை அனுமதிக்கவும்)..."
   },
   'తెలుగు': {
     title: "మీ ప్రభుత్వ ప్రయోజనాన్ని కనుగొనండి",
@@ -131,7 +269,39 @@ const DICTIONARY = {
     language_header: "భాష",
     filters_header: "ఫిల్టర్లు",
     tab_taaza: "తాజా వార్తలు",
-    taaza_desc: "భారతదేశంలో ప్రభుత్వ పథకాలకు సంబంధించిన తాజా నోటిఫికేషన్‌లు మరియు వార్తలు."
+    taaza_desc: "భారతదేశంలో ప్రభుత్వ పథకాలకు సంబంధించిన తాజా నోటిఫికేషన్‌లు మరియు వార్తలు.",
+    tab_crop_doctor: "AI పంటల డాక్టర్",
+    tab_msp: "MSP ట్రాకర్",
+    tab_marketplace: "కమ్యూనిటీ మార్కెట్ ప్లేస్",
+    market_title: "కమ్యూనిటీ మార్కెట్ ప్లేస్",
+    market_subtitle: "రైతుల నుండి నేరుగా మీకు. సున్నా కమిషన్.",
+    list_produce: "నా ఉత్పత్తులను జాబితా చేయండి",
+    loading_market: "మార్కెట్ లోడ్ అవుతోంది...",
+    no_products: "ఈ వర్గంలో ఉత్పత్తులేవీ కనుగొనబడలేదు. మొదట జాబితా చేయండి!",
+    your_listing: "మీ జాబితా",
+    call: "కాల్",
+    whatsapp: "వాట్సాప్",
+    remove: "తొలగించు",
+    confirm_delete: "మీరు ఖచ్చితంగా ఈ జాబితాను తొలగించాలనుకుంటున్నారా?",
+    list_your_produce: "మీ ఉత్పత్తులను జాబితా చేయండి",
+    product_name: "ఉత్పత్తి పేరు",
+    category: "వర్గం",
+    quantity: "అందుబాటులో ఉన్న పరిమాణం",
+    price: "ధర (₹)",
+    unit: "యూనిట్",
+    location: "ప్రాంతం",
+    product_image: "ఉత్పత్తి చిత్రం",
+    upload_photo: "ఉత్పత్తి ఫోటోను అప్‌లోడ్ చేయండి",
+    image_selected: "చిత్రం ఎంపிக చేయబడింది",
+    description: "పూర్తి వివరణ",
+    cancel: "రద్దు చేయి",
+    post_listing: "జాబితాను పోస్ట్ చేయండి",
+    ai_assistant: "AI అసిస్టెంట్",
+    start_voice: "వాయిస్ ప్రారంభించు",
+    end_call: "కాల్ ముగించు",
+    type_here: "ఇక్కడ టైప్ చేయండి...",
+    voice_off_msg: "చాటింగ్ ప్రారంభించడానికి వాయిస్‌ని ఆన్ చేయండి",
+    vapi_error: "కనెక్ట్ అవుతోంది (దయచేసి మైక్రోఫోన్‌ని అనుమతించండి)..."
   }
 };
 
@@ -139,9 +309,12 @@ const DICTIONARY = {
 function AuthCallback() {
   const { checkOnboardedStatus } = useAuth();
   const [status, setStatus] = useState("Completing authentication...");
-  const hasRun = React.useRef(false);  // ← prevent re-runs when AuthContext re-renders
+  const [isError, setIsError] = useState(false);
+  const hasRun = React.useRef(false);
 
-  const APP_URL = 'http://localhost:5000/app';
+  // Read app URLs from env — no hardcoded localhost
+  const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000';
+  const APP_URL  = `${BASE_URL}/app`;
 
   useEffect(() => {
     // Guard: only run once even if deps change due to context re-renders
@@ -152,39 +325,38 @@ function AuthCallback() {
 
     const handleCallback = async () => {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const isMockBypass = urlParams.get('mock_bypass') === 'true';
-        const fromDataCollection = urlParams.get('from') === 'datacollection';
-
-        // --- PRODUCTION SUPABASE AUTH ---
-        // Step 1: Extract tokens from URL hash
+        // Step 1: Extract tokens from URL hash (implicit flow fallback)
         const rawHash = window.location.hash.startsWith('#')
           ? window.location.hash.slice(1)
           : window.location.hash;
         const hashParams = new URLSearchParams(rawHash);
-        const access_token = hashParams.get('access_token');
+        const access_token  = hashParams.get('access_token');
         const refresh_token = hashParams.get('refresh_token');
 
         let resolvedUser = null;
 
         if (access_token && refresh_token) {
-          // Step 2: Explicitly set session at this origin (5000)
+          // Explicitly set session when tokens arrive in the URL hash
           setStatus("Setting up your session...");
           const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) throw error;
           resolvedUser = data?.user ?? null;
-          // Clean hash from URL without a reload
+          // Clean the hash from the URL without triggering a reload
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         } else {
-          // Fallback: session might already exist
-          const { data } = await supabase.auth.getSession();
+          // PKCE flow: Supabase (with detectSessionInUrl: true) already exchanged
+          // the code for a session — just retrieve it
+          setStatus("Verifying your session...");
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
           resolvedUser = data?.session?.user ?? null;
         }
 
         if (cancelled) return;
 
         if (!resolvedUser) {
-          window.location.href = 'http://localhost:5000';
+          // No valid session — send back to landing page
+          window.location.href = BASE_URL;
           return;
         }
 
@@ -192,18 +364,17 @@ function AuthCallback() {
         const isOnboarded = await checkOnboardedStatus(resolvedUser.email);
         if (cancelled) return;
 
-        if (!isOnboarded) {
-          window.location.href = 'http://localhost:5000/app/profile';
-          return;
-        }
-
-        window.location.href = APP_URL;
+        // Route: new user → profile setup, returning user → main app
+        window.location.href = isOnboarded
+          ? APP_URL
+          : `${BASE_URL}/app/profile`;
 
       } catch (err) {
-        console.error('AuthCallback error:', err);
+        console.error('[AuthCallback] Error:', err);
         if (!cancelled) {
-          setStatus('Error: ' + err.message + '. Redirecting...');
-          setTimeout(() => { window.location.href = APP_URL; }, 2000);
+          setIsError(true);
+          setStatus(`Authentication failed: ${err.message}. Redirecting...`);
+          setTimeout(() => { window.location.href = APP_URL; }, 3000);
         }
       }
     };
@@ -212,7 +383,25 @@ function AuthCallback() {
     return () => { cancelled = true; };
   }, []); // empty deps — run once on mount only
 
-  return null;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', minHeight: '100vh',
+      background: '#0f2518', color: '#fff', fontFamily: 'sans-serif', gap: '16px'
+    }}>
+      {!isError && (
+        <div style={{
+          width: 40, height: 40, border: '4px solid rgba(255,255,255,0.2)',
+          borderTop: '4px solid #48bb78', borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+      )}
+      <p style={{ fontSize: 16, color: isError ? '#fc8181' : '#a0aec0', textAlign: 'center', maxWidth: 320 }}>
+        {status}
+      </p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 }
 
 
@@ -222,288 +411,22 @@ function App() {
 
   useEffect(() => {
     if (!authLoading && !user && !window.location.pathname.includes('/auth/callback')) {
-      window.location.href = 'http://localhost:5000/';
+      window.location.href = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000') + '/';
     }
   }, [user, authLoading]);
-  const [schemes, setSchemes] = useState([
-    {
-      _id: 1,
-      scheme_name: 'PM Kisan Samman Nidhi',
-      category: 'Farmers',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Direct income support of ₹6,000/year in 3 installments to small & marginal farmer families.',
-      eligibility_criteria: 'All land-holding farmer families with cultivable land. Excludes institutional landholders and income tax payers.',
-      benefits: '₹6,000 per year transferred directly to bank account in 3 equal installments.',
-      required_documents: '7/12 Extract, Aadhar Card, Bank Account, Land Ownership Proof',
-      application_link: 'https://pmkisan.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 85
-    },
-    {
-      _id: 2,
-      scheme_name: 'PM Fasal Bima Yojana',
-      category: 'Farmers',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Comprehensive crop insurance at just 2% premium for Kharif and 1.5% for Rabi crops.',
-      eligibility_criteria: 'All farmers growing notified crops in notified areas. Both loanee and non-loanee farmers eligible.',
-      benefits: 'Full insured sum coverage against natural calamities, pests, and diseases.',
-      required_documents: '7/12 Extract, Aadhar Card, Bank Account, Sowing Certificate, Land Records',
-      application_link: 'https://pmfby.gov.in/',
-      start_date: 'Seasonal',
-      end_date: 'Ongoing',
-      eligibility_score: 80
-    },
-    {
-      _id: 3,
-      scheme_name: 'Pradhan Mantri Mudra Yojana (MUDRA)',
-      category: 'Business',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Collateral-free loans up to ₹20 Lakh for micro/small enterprises under Shishu, Kishore, and Tarun categories.',
-      eligibility_criteria: 'Any Indian citizen with a business plan for non-farm income generating activity. No collateral required.',
-      benefits: 'Shishu: up to ₹50K, Kishore: ₹50K-5L, Tarun: ₹5L-20L.',
-      required_documents: 'Aadhar Card, PAN Card, Business Plan, Address Proof, Bank Statements',
-      application_link: 'https://www.mudra.org.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 70
-    },
-    {
-      _id: 4,
-      scheme_name: 'Beti Bachao Beti Padhao',
-      category: 'Women',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'National initiative for survival, protection, and education of the girl child.',
-      eligibility_criteria: 'Families with girl children under 10 years of age. Focus on gender-critical districts.',
-      benefits: 'Educational support, awareness campaigns, Sukanya Samriddhi Account benefits.',
-      required_documents: 'Birth Certificate, Aadhar Card (parent), Bank Account',
-      application_link: 'https://wcd.nic.in/bbbp-schemes',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 60
-    },
-    {
-      _id: 5,
-      scheme_name: 'Soil Health Card Scheme',
-      category: 'Farmers',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Free soil testing and health card for every farmer to improve productivity with nutrient-based recommendations.',
-      eligibility_criteria: 'All farmers with agricultural land. Soil samples tested every 2 years.',
-      benefits: 'Free soil analysis report with crop-wise fertilizer recommendations.',
-      required_documents: '7/12 Extract, Aadhar Card, Land details',
-      application_link: 'https://soilhealth.dac.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 90
-    },
-    {
-      _id: 6,
-      scheme_name: 'Pradhan Mantri Krishi Sinchai Yojana (PMKSY)',
-      category: 'Farmers',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Subsidy up to 55% on micro-irrigation (drip & sprinkler) systems. "Har Khet Ko Paani" mission.',
-      eligibility_criteria: 'All farmers with own agricultural land. Priority for SC/ST and small/marginal farmers.',
-      benefits: '55% subsidy for small farmers, 45% for others on drip/sprinkler systems.',
-      required_documents: '7/12 Extract, 8A Extract, Aadhar Card, Bank Account, Caste Certificate (if SC/ST)',
-      application_link: 'https://pmksy.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 75
-    },
-    {
-      _id: 7,
-      scheme_name: 'Ayushman Bharat - PMJAY',
-      category: 'Health',
-      state: 'All India',
-      income_level: 'Backward Class',
-      summary: 'Free health insurance cover of ₹5 Lakh per family per year for secondary and tertiary hospitalization.',
-      eligibility_criteria: 'Families identified in SECC 2011 data. Deprived and vulnerable rural/urban families.',
-      benefits: '₹5 Lakh cashless treatment at empaneled hospitals. Covers 1,350+ medical packages.',
-      required_documents: 'Aadhar Card, Ration Card, Income Certificate, SECC data verification',
-      application_link: 'https://pmjay.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 70
-    },
-    {
-      _id: 8,
-      scheme_name: 'PM Awas Yojana - Gramin',
-      category: 'Housing',
-      state: 'All India',
-      income_level: 'Backward Class',
-      summary: 'Financial assistance of ₹1.20 Lakh (plains) / ₹1.30 Lakh (hilly) for pucca house construction.',
-      eligibility_criteria: 'Houseless families or families living in kutcha/dilapidated houses as per SECC 2011.',
-      benefits: '₹1.20-1.30 Lakh assistance + 90 days MGNREGA wages + toilet assistance under SBM.',
-      required_documents: 'Aadhar Card, Bank Account, BPL Card/Income Certificate, Land Ownership Proof',
-      application_link: 'https://pmayg.nic.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 65
-    },
-    {
-      _id: 9,
-      scheme_name: 'Mahatma Jyotirao Phule Shetkari Karj Mukti Yojana',
-      category: 'Farmers',
-      state: 'Maharashtra',
-      income_level: 'All',
-      summary: 'Farm loan waiver up to ₹2 Lakh for Maharashtra farmers with crop loans from nationalized banks.',
-      eligibility_criteria: 'Maharashtra domicile farmers with outstanding crop loans up to ₹2 Lakh taken before 30 Sep 2019.',
-      benefits: 'Complete waiver of crop loans up to ₹2 Lakh. Incentive of ₹50,000 for regular repayers.',
-      required_documents: '7/12 Extract, 8A Extract, Aadhar Card, Bank Loan Statement, Domicile Certificate',
-      application_link: 'https://karjmafi.mahait.org/',
-      start_date: 'Ongoing',
-      end_date: 'December 31st, 2026',
-      eligibility_score: 78
-    },
-    {
-      _id: 10,
-      scheme_name: 'Nanaji Deshmukh Krushi Sanjivani Yojana (PoCRA)',
-      category: 'Farmers',
-      state: 'Maharashtra',
-      income_level: 'All',
-      summary: 'Climate-resilient agriculture project with subsidies for farm ponds, drip irrigation, and more in drought-prone areas.',
-      eligibility_criteria: 'Farmers in drought-prone areas of Maharashtra. Priority for small and marginal farmers.',
-      benefits: 'Up to 75% subsidy on farm ponds, shade nets, polyhouse, and micro-irrigation.',
-      required_documents: '7/12 Extract, Aadhar Card, Bank Account, Caste Certificate (if applicable)',
-      application_link: 'https://pocra.mahait.org/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 72
-    },
-    {
-      _id: 11,
-      scheme_name: 'Gopinath Munde Shetkari Apghat Vima Yojana',
-      category: 'Farmers',
-      state: 'Maharashtra',
-      income_level: 'All',
-      summary: 'Free accident insurance of ₹2 Lakh for farmers in Maharashtra covering death and disability.',
-      eligibility_criteria: 'All farmers in Maharashtra between 10-75 years of age holding 7/12 extract.',
-      benefits: '₹2 Lakh for accidental death, ₹1 Lakh for partial disability, ₹50K for hospitalization.',
-      required_documents: '7/12 Extract, Aadhar Card, Age Proof, FIR/Medical Certificate (for claim)',
-      application_link: 'https://krishi.maharashtra.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 85
-    },
-    {
-      _id: 12,
-      scheme_name: 'National Scholarship Portal',
-      category: 'Education',
-      state: 'All India',
-      income_level: 'Backward Class',
-      summary: 'One-stop platform for pre-matric, post-matric, and merit-based scholarships for students from economically weaker sections.',
-      eligibility_criteria: 'Students from SC/ST/OBC/Minority communities. Annual family income below ₹2.5 Lakh.',
-      benefits: 'Scholarship amount varies by course: ₹5,000-50,000 per year.',
-      required_documents: 'Income Certificate, Caste Certificate, Aadhar Card, Marksheet, Bank Account',
-      application_link: 'https://scholarships.gov.in/',
-      start_date: 'August 1st, 2026',
-      end_date: 'October 31st, 2026',
-      eligibility_score: 60
-    },
-    {
-      _id: 13,
-      scheme_name: 'PM Surya Ghar Muft Bijli Yojana',
-      category: 'General',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Subsidy up to ₹78,000 for rooftop solar panel installation. Get 300 units of free electricity every month.',
-      eligibility_criteria: 'Any household with a valid electricity connection and suitable rooftop area.',
-      benefits: '₹30,000 subsidy for 1kW, ₹60,000 for 2kW, ₹78,000 for 3kW+ systems.',
-      required_documents: 'Electricity Bill, Aadhar Card, Bank Account, Property Document',
-      application_link: 'https://pmsuryaghar.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 80
-    },
-    {
-      _id: 14,
-      scheme_name: 'Atal Pension Yojana',
-      category: 'Senior Citizens',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Guaranteed pension of ₹1,000-5,000/month after 60 years. Government co-contributes 50% for eligible subscribers.',
-      eligibility_criteria: 'Indian citizens aged 18-40 years with a savings bank account. Not an income taxpayer.',
-      benefits: 'Fixed monthly pension of ₹1,000 to ₹5,000 based on contribution.',
-      required_documents: 'Aadhar Card, Bank Account, Mobile Number',
-      application_link: 'https://npscra.nsdl.co.in/scheme-details.php',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 65
-    },
-    {
-      _id: 15,
-      scheme_name: 'PM Vishwakarma Yojana',
-      category: 'Business',
-      state: 'All India',
-      income_level: 'Backward Class',
-      summary: 'End-to-end support for traditional artisans and craftspeople with up to ₹3 Lakh loans at 5% interest.',
-      eligibility_criteria: 'Traditional artisans/craftspeople (carpenter, blacksmith, goldsmith, potter, etc.) aged 18+.',
-      benefits: 'Skill training, ₹15,000 toolkit, ₹1-3 Lakh collateral-free loans at 5%, digital marketing support.',
-      required_documents: 'Aadhar Card, Bank Account, Craft Skill Certificate, Caste Certificate',
-      application_link: 'https://pmvishwakarma.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 68
-    },
-    {
-      _id: 16,
-      scheme_name: 'Standup India Scheme',
-      category: 'Business',
-      state: 'All India',
-      income_level: 'Backward Class',
-      summary: 'Bank loans between ₹10 Lakh and ₹1 Crore for SC/ST and women entrepreneurs for greenfield enterprises.',
-      eligibility_criteria: 'SC/ST or Women entrepreneurs aged 18+. For setting up greenfield enterprise in manufacturing or services.',
-      benefits: 'Composite loan of ₹10 Lakh to ₹1 Crore covering 75% of project cost.',
-      required_documents: 'Aadhar Card, PAN Card, Caste Certificate (SC/ST), Business Plan, ITR, Bank Statements',
-      application_link: 'https://www.standupmitra.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 55
-    },
-    {
-      _id: 17,
-      scheme_name: 'PM Matru Vandana Yojana',
-      category: 'Women',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Cash incentive of ₹11,000 for pregnant and lactating women for the first living child.',
-      eligibility_criteria: 'Pregnant women and lactating mothers for first live birth. Age 19+ years.',
-      benefits: '₹5,000 in 3 installments + ₹6,000 for institutional delivery under JSY.',
-      required_documents: 'Aadhar Card, Bank Account, MCP Card, Pregnancy Registration',
-      application_link: 'https://pmmvy.wcd.gov.in/',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 70
-    },
-    {
-      _id: 18,
-      scheme_name: 'Kisan Credit Card (KCC)',
-      category: 'Farmers',
-      state: 'All India',
-      income_level: 'All',
-      summary: 'Revolving credit facility at 4% interest for crop production, post-harvest, and allied agriculture activities.',
-      eligibility_criteria: 'All farmers, sharecroppers, tenant farmers, and self-help groups engaged in agriculture.',
-      benefits: 'Credit limit up to ₹3 Lakh at 4% interest (with subvention). ATM-enabled smart card.',
-      required_documents: '7/12 Extract, Aadhar Card, PAN Card, Passport Photo, Land Records',
-      application_link: 'https://pmkisan.gov.in/KCCForm.aspx',
-      start_date: 'Ongoing',
-      end_date: 'Ongoing',
-      eligibility_score: 88
-    }
-  ]);
+
+  // Schemes start empty — loaded from DB on mount via useEffect, updated via Sync button
+  const [schemes, setSchemes] = useState([]);
+
   const [filteredSchemes, setFilteredSchemes] = useState([]);
   const [detailsModal, setDetailsModal] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(''); // feedback after sync
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [selectedIncome, setSelectedIncome] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [userProfile, setUserProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('browse');
 
@@ -516,13 +439,11 @@ function App() {
   // Translation Helper
   const t = (key) => DICTIONARY[selectedLanguage]?.[key] || DICTIONARY['English'][key] || key;
 
-  // Taaza Khabar Dummy Data
-  const taazaKhabarNews = [
-    { id: 1, title: 'PM Kisan Samman Nidhi 16th Installment Released', date: '2026-03-10', time: '14:30', description: 'The government has released the 16th installment of PM Kisan Samman Nidhi. Eligible farmers will directly receive Rs 2000 in their bank accounts.' },
-    { id: 2, title: 'New Subsidies for Rooftop Solar Panels', date: '2026-03-09', time: '10:15', description: 'Under the PM Surya Ghar scheme, subsidies up to 60% for 2kW systems are now open for applications through the national portal.' },
-    { id: 3, title: 'Ayushman Bharat Expansion to Senior Citizens', date: '2026-03-08', time: '09:00', description: 'Citizens over 70 years are now automatically eligible for Rs 5 Lakh health coverage under Ayushman Bharat regardless of income.' },
-    { id: 4, title: 'Mudra Loan Limits Enhanced', date: '2026-03-07', time: '16:45', description: 'The upper limit for Tarun category of Mudra loans has been enhanced to Rs 20 Lakhs from the existing Rs 10 Lakhs to support growing businesses.' },
-  ];
+  // Taaza Khabar State — Paginated
+  const [taazaKhabarNews, setTaazaKhabarNews] = useState([]);
+  const [newsPage, setNewsPage] = useState(1);
+  const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   // OCR Document Upload State
   const [selectedFile, setSelectedFile] = useState(null);
@@ -579,29 +500,41 @@ function App() {
   };
 
   const handleSyncProfile = async () => {
-    if (!extractedData || !user?.id) {
-      alert("No user session found or no data to sync. Please sign in.");
+    if (!user?.id) {
+      alert("No user session found. Please sign in first.");
+      return;
+    }
+    if (!extractedData) {
+      alert("No document data to sync. Please upload a document first.");
       return;
     }
     setSyncStatus('syncing');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
     try {
       const res = await fetch('/api/ocr/sync-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: user.id, extractedData }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (data.success) {
         setSyncStatus('success');
-        alert("Profile updated successfully from 7/12 document!");
       } else {
         setSyncStatus('error');
-        alert(data.error || "Sync failed");
+        alert(data.error || 'Sync failed. Please try again.');
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       setSyncStatus('error');
-      console.error(err);
-      alert("Sync failed: Network error");
+      if (err.name === 'AbortError') {
+        alert('Sync timed out. Please check your connection and try again.');
+      } else {
+        console.error('Sync error:', err);
+        alert('Sync failed: ' + err.message);
+      }
     }
   };
 
@@ -615,7 +548,6 @@ function App() {
 
   // Location params state for location tracer
   const [locationParams, setLocationParams] = useState(null);
-  const [showMapPins, setShowMapPins] = useState(false);
   const [mapSearchQuery, setMapSearchQuery] = useState('government+offices');
 
   useEffect(() => {
@@ -627,7 +559,6 @@ function App() {
           },
           (error) => {
             console.error("Error getting location", error);
-            // Default location: New Delhi
             setLocationParams({ lat: 28.6139, lng: 77.2090 });
           }
         );
@@ -659,22 +590,136 @@ function App() {
     fetchProfile();
   }, [user, syncStatus]);
 
-  // ── Sync schemes + trigger WhatsApp notification ──
+  // ── Load schemes from DB on mount ────────────────────────────────────────
+  useEffect(() => {
+    const loadSchemesFromDB = async () => {
+      try {
+        setIsLoading(true);
+        const [schemesRes, newsRes] = await Promise.all([
+          fetch('/api/schemes').catch(() => ({ ok: false })),
+          fetch('/api/firecrawl/news?page=1&limit=10').catch(() => ({ ok: false }))
+        ]);
+
+        if (schemesRes.ok) {
+          const sData = await schemesRes.json();
+          if (Array.isArray(sData) && sData.length > 0) {
+            setSchemes(sData);
+            setSyncMessage(`✅ Loaded ${sData.length} schemes from database`);
+          } else {
+            setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Inbox size={16} /> No schemes in database yet. Click "Sync Live Schemes" to fetch.</span>);
+          }
+        }
+
+        if (newsRes.ok) {
+          const nData = await newsRes.json();
+          if (nData.success && Array.isArray(nData.news)) {
+            setTaazaKhabarNews(nData.news);
+            setHasMoreNews(nData.hasMore ?? false);
+            setNewsPage(1);
+          }
+        }
+
+      } catch (err) {
+        console.error('Failed to load schemes from DB:', err);
+        setSyncMessage('⚠️ Could not reach backend. Check if server is running.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (user) loadSchemesFromDB(); // only load once user session is confirmed
+  }, [user]);
+
+  // ── Load More News (Paginated) ─────────────────────────────────────────────
+  const loadMoreNews = async () => {
+    if (newsLoading || !hasMoreNews) return;
+    setNewsLoading(true);
+    try {
+      const nextPage = newsPage + 1;
+      const res = await fetch(`/api/firecrawl/news?page=${nextPage}&limit=10`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.news) && data.news.length > 0) {
+        setTaazaKhabarNews(prev => [...prev, ...data.news]);
+        setHasMoreNews(data.hasMore ?? false);
+        setNewsPage(nextPage);
+      } else {
+        setHasMoreNews(false);
+      }
+    } catch (err) {
+      console.error('Failed to load more news:', err);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  // ── Sync ONLY News (Fast RSS Sync) ────────────────────────────────────────
+  const [isSyncingNews, setIsSyncingNews] = useState(false);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const tabRefs = useRef({});
+
+  // Sync tab indicator position when activeTab or language changes
+  useEffect(() => {
+    const activeEl = tabRefs.current[activeTab];
+    if (activeEl) {
+      setIndicatorStyle({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth
+      });
+    }
+  }, [activeTab, selectedLanguage]);
+  const syncNews = async () => {
+    if (isSyncingNews) return;
+    setIsSyncingNews(true);
+    try {
+      const res = await axios.post('/api/firecrawl/news/refresh');
+      if (res.data.success) {
+        setTaazaKhabarNews(res.data.news);
+        setNewsPage(1);
+        setHasMoreNews(res.data.news.length >= 10);
+        setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={16} /> News feed refreshed successfully!</span>);
+      }
+    } catch (err) {
+      console.error('Failed to sync news:', err);
+      setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldX size={16} /> News refresh failed. Check internet connection.</span>);
+    } finally {
+      setTimeout(() => setIsSyncingNews(false), 1000); // Animation buffer
+    }
+  };
+
+  // ── Sync schemes via Firecrawl + Gemini + trigger WhatsApp ───────────────
   const syncSchemes = async () => {
-    console.log("SYNC CLICKED");
-    console.log("user object:", user);
-    console.log("uid being sent:", user?.id);
     try {
       setIsLoading(true);
-      const uid = user?.id ?? "";
+      setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCcw size={16} className="spinning" /> Scraping live schemes...</span>);
+      const uid = user?.id ?? '';
       const res = await fetch(`/api/firecrawl/sync?uid=${uid}`);
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      console.log("Fetched schemes:", data);
-      if (data.success && data.schemes) {
-        setSchemes(data.schemes);
+
+      if (data.success && Array.isArray(data.schemes)) {
+        if (data.schemes.length > 0) {
+          setSchemes(data.schemes);
+        }
+        // Also force-refresh news from sync response
+        if (Array.isArray(data.news) && data.news.length > 0) {
+          setTaazaKhabarNews(data.news);
+          setNewsPage(1);
+          setHasMoreNews(data.news.length >= 10);
+        }
+
+        if (data.source === 'firecrawl') {
+          setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={16} /> Discovery Success! Scraped {data.scraped_count} fresh schemes.</span>);
+        } else if (data.source === 'pib_fallback') {
+          setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={16} /> Backup Active: Synced {data.scraped_count} official announcements from PIB.</span>);
+        } else {
+          setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Database size={16} /> Dynamic Mode: Schemes rearranged & News feed refreshed.</span>);
+        }
+      } else {
+        setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={16} /> Sync completed with cached data.</span>);
       }
     } catch (error) {
-      console.error(error);
+      console.error('[syncSchemes] error:', error);
+      setSyncMessage(<span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldX size={16} /> Sync failed: {error.message}</span>);
     } finally {
       setIsLoading(false);
     }
@@ -687,7 +732,7 @@ function App() {
 
   useEffect(() => {
     filterSchemes();
-  }, [schemes, selectedCategory, selectedState, selectedIncome]);
+  }, [schemes, selectedCategory, selectedState, selectedIncome, searchQuery]);
 
   const filterSchemes = () => {
     let filtered = schemes;
@@ -702,6 +747,15 @@ function App() {
 
     if (selectedIncome && selectedIncome !== 'All') {
       filtered = filtered.filter(scheme => scheme.income_level === selectedIncome || scheme.income_level === 'All');
+    }
+
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(scheme => 
+        (scheme.scheme_name && scheme.scheme_name.toLowerCase().includes(q)) || 
+        (scheme.summary && scheme.summary.toLowerCase().includes(q)) ||
+        (scheme.category && scheme.category.toLowerCase().includes(q)) 
+      );
     }
 
     setFilteredSchemes(filtered);
@@ -783,9 +837,10 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={
-        <div className={`app ${isDarkMode ? 'dark-mode' : ''}`} style={{ fontSize: `${16 * fontSizeMultiplier}px` }}>
+    <div className={`app ${isDarkMode ? 'dark-mode' : ''}`} style={{ fontSize: `${16 * fontSizeMultiplier}px` }}>
+      <Routes>
+        <Route path="/" element={
+          <>
           {/* Top Banner */}
           <div className="top-banner">
             <div className="top-banner-inner">
@@ -857,39 +912,48 @@ function App() {
                 </div>
               </div>
 
-              {/* Profile Section */}
               <div className="sidebar-section">
-                <h3>{t('my_profile')}</h3>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <User size={14} /> {t('my_profile')}
+                </h3>
                 {user ? (
                   <>
-                    <p className="user-email" style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#103567' }}>
+                    <p className="user-email name">
                       {userProfile?.name || userProfile?.full_name || 'Farmer'}
                     </p>
-                    <p style={{ fontSize: '0.75rem', color: '#666', margin: '2px 0 8px 0' }}>{user.email}</p>
+                    <p className="user-email sub">{user.email}</p>
                     
-                    <div style={{ background: '#f7fafc', padding: '8px', borderRadius: '6px', marginBottom: '10px', fontSize: '0.75rem' }}>
+                    <div className="profile-info-box">
                       {(userProfile?.income_category || userProfile?.incomeClass) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{color: '#16a085', fontWeight: 700}}>💰 Income:</span>
-                          <span style={{color: '#333'}}>{userProfile.incomeClass || userProfile.income_category}</span>
+                        <div className="profile-info-row">
+                          <span className="profile-info-label income" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <IndianRupee size={12} /> Income:
+                          </span>
+                          <span className="profile-info-text">{userProfile.incomeClass || userProfile.income_category}</span>
                         </div>
                       )}
                       {userProfile?.district && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{color: '#103567', fontWeight: 700}}>📍 District:</span>
-                          <span style={{color: '#333'}}>{userProfile.district}</span>
+                        <div className="profile-info-row">
+                          <span className="profile-info-label dist" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <MapPin size={12} /> District:
+                          </span>
+                          <span className="profile-info-text">{userProfile.district}</span>
                         </div>
                       )}
                       {(userProfile?.village || userProfile?.location || userProfile?.taluka) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{color: '#103567', fontWeight: 700}}>🏘️ Location:</span>
-                          <span style={{color: '#333'}}>{userProfile.village || userProfile.location || ''} {userProfile.taluka ? `(${userProfile.taluka})` : ''}</span>
+                        <div className="profile-info-row">
+                          <span className="profile-info-label loc" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Home size={12} /> Location:
+                          </span>
+                          <span className="profile-info-text">{userProfile.village || userProfile.location || ''} {userProfile.taluka ? `(${userProfile.taluka})` : ''}</span>
                         </div>
                       )}
                       {userProfile?.survey_number && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{color: '#d97706', fontWeight: 700}}>📄 Survey:</span>
-                          <span style={{color: '#333'}}>{userProfile.survey_number}</span>
+                        <div className="profile-info-row">
+                          <span className="profile-info-label survey" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <FileText size={12} /> Survey:
+                          </span>
+                          <span className="profile-info-text">{userProfile.survey_number}</span>
                         </div>
                       )}
                     </div>
@@ -918,6 +982,7 @@ function App() {
                 >
                   {isLoading ? "Syncing..." : t('sync_live')}
                 </button>
+                {syncMessage && <p style={{fontSize: 13, color: '#48bb78', marginTop: 8}}>{syncMessage}</p>}
               </div>
             </aside>
 
@@ -951,44 +1016,90 @@ function App() {
                 </div>
               </section>
 
-              {/* Tabs */}
+              {/* Tabs with Glide Animation */}
               <div className="tabs">
                 <button
+                  ref={el => tabRefs.current['browse'] = el}
                   className={`tab ${activeTab === 'browse' ? 'active' : ''}`}
                   onClick={() => setActiveTab('browse')}
                 >
                   {t('tab_browse')}
                 </button>
                 <button
+                  ref={el => tabRefs.current['assistant'] = el}
                   className={`tab ${activeTab === 'assistant' ? 'active' : ''}`}
                   onClick={() => setActiveTab('assistant')}
                 >
                   {t('tab_ai')}
                 </button>
                 <button
+                  ref={el => tabRefs.current['pdf'] = el}
                   className={`tab ${activeTab === 'pdf' ? 'active' : ''}`}
                   onClick={() => setActiveTab('pdf')}
                 >
                   {t('tab_pdf')}
                 </button>
                 <button
+                  ref={el => tabRefs.current['location'] = el}
                   className={`tab ${activeTab === 'location' ? 'active' : ''}`}
                   onClick={() => setActiveTab('location')}
                 >
                   {t('tab_location')}
                 </button>
                 <button
+                  ref={el => tabRefs.current['fraud'] = el}
                   className={`tab ${activeTab === 'fraud' ? 'active' : ''}`}
                   onClick={() => setActiveTab('fraud')}
                 >
                   {t('tab_taaza')}
                 </button>
+                <button
+                  ref={el => tabRefs.current['crop-doctor'] = el}
+                  className={`tab ${activeTab === 'crop-doctor' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('crop-doctor')}
+                >
+                  🌿 {t('tab_crop_doctor')}
+                </button>
+                <button
+                  ref={el => tabRefs.current['msp'] = el}
+                  className={`tab ${activeTab === 'msp' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('msp')}
+                >
+                  📊 {t('tab_msp')}
+                </button>
+                <button
+                  ref={el => tabRefs.current['marketplace'] = el}
+                  className={`tab ${activeTab === 'marketplace' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('marketplace')}
+                >
+                  🏪 {t('tab_marketplace')}
+                </button>
+                {/* Floating Glide Indicator */}
+                <div className="tab-indicator" style={indicatorStyle}></div>
               </div>
 
               {/* Available Schemes */}
               {activeTab === 'browse' && (
                 <div className="schemes-container">
-                  <h3>📋 Available Schemes ({filteredSchemes.length})</h3>
+                  
+                  {/* Search Bar UI */}
+                  <div className="search-bar-container">
+                    <div className="scheme-search-bar">
+                      <Search className="search-icon" size={20} />
+                      <input
+                        type="text"
+                        placeholder="Search for schemes (e.g., Tractor, Health, Student)..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        aria-label="Search schemes"
+                      />
+                    </div>
+                  </div>
+
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ClipboardList size={22} color="#198754" />
+                    Available Schemes ({filteredSchemes.length})
+                  </h3>
                   {isLoading ? (
                     <div className="loading">Loading schemes...</div>
                   ) : filteredSchemes.length > 0 ? (
@@ -999,17 +1110,31 @@ function App() {
                           <div key={scheme._id} className="scheme-card">
                             <div className="card-header" style={{ background: getCategoryColor(scheme.category), borderTop: 'none', padding: '24px 24px 20px' }}>
                               <div className="card-category" style={{ color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
-                                <span>✦ {scheme.category?.toUpperCase() || 'GENERAL'}</span>
-                                <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700 }}>{elig.label}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <Sparkles size={14} /> 
+                                  {scheme.category?.toUpperCase() || 'GENERAL'}
+                                </span>
+                                <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  {elig.status === 'unknown' ? <CircleHelp size={12} /> : <CheckCircle2 size={12} />}
+                                  {elig.label.replace(/❓|✅/, '')}
+                                </span>
                               </div>
-                              <h3 className="card-title" style={{ color: '#ffffff' }}>{scheme.scheme_name}</h3>
+                              <h3 className="scheme-title" style={{ color: '#ffffff', fontSize: '1.3rem', margin: 0, fontWeight: 700, lineHeight: 1.3 }}>
+                                <span style={{ color: 'white' }}>{scheme.scheme_name}</span>
+                              </h3>
                             </div>
                             <div className="card-body">
                               <p className="card-summary">{scheme.summary}</p>
                               <div className="card-meta">
                                 <span className="meta-tag">State: {scheme.state}</span>
-                                <span className="meta-tag">Income: {scheme.income_level}</span>
-                                {scheme.end_date && <span className="meta-tag" style={{ color: scheme.end_date === 'Ongoing' ? '#276749' : '#c53030' }}>📅 {scheme.end_date}</span>}
+                                <span className="meta-tag" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <IndianRupee size={12} /> Income: {scheme.income_level}
+                                </span>
+                                {scheme.end_date && (
+                                  <span className="meta-tag" style={{ color: scheme.end_date === 'Ongoing' ? '#276749' : '#c53030', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <CalendarDays size={12} /> {scheme.end_date}
+                                  </span>
+                                )}
                               </div>
                               <div className="eligibility-score">
                                 <div className="score-label">{t('eligibility_score')}: <strong>{scheme.eligibility_score}%</strong></div>
@@ -1019,17 +1144,17 @@ function App() {
                               </div>
                               {/* Eligibility reasons */}
                               {elig.reasons && (
-                                <div style={{ marginBottom: '10px', fontSize: '0.75rem', color: '#555' }}>
-                                  {elig.reasons.map((r, i) => <div key={i} style={{ padding: '2px 0' }}>• {r}</div>)}
+                                <div className="eligibility-reasons-list">
+                                  {elig.reasons.map((r, i) => <div key={i} className="eligibility-reason-text">• {r}</div>)}
                                 </div>
                               )}
                               {/* Dual button row: Details + Apply Now */}
                               <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                 <button
                                   onClick={() => setDetailsModal(scheme)}
-                                  style={{ flex: 1, background: 'none', border: '2px solid #103567', color: '#103567', padding: '10px 0', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', transition: 'all 0.2s' }}
+                                  className="btn-details"
                                 >
-                                  📄 Details
+                                  Details
                                 </button>
                                 <button
                                   onClick={(e) => handleApply(e, scheme)}
@@ -1040,8 +1165,9 @@ function App() {
                                 </button>
                               </div>
                               {userProfile?.survey_number && scheme.category === 'Farmers' && (
-                                <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#103567', background: '#eef2ff', padding: '8px', borderRadius: '6px', borderLeft: '4px solid #103567' }}>
-                                  ✅ Survey No: <strong>{userProfile.survey_number}</strong> — Apply with synced 7/12 extract.
+                                <div className="farmer-survey-alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <CheckCircle2 size={16} color="#198754" /> 
+                                  <span>Survey No: <strong>{userProfile.survey_number}</strong> — Apply with synced 7/12 extract.</span>
                                 </div>
                               )}
                             </div>
@@ -1057,50 +1183,55 @@ function App() {
 
               {/* Details Modal */}
               {detailsModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-                  onClick={() => setDetailsModal(null)}>
-                  <div style={{ background: 'white', borderRadius: '16px', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflow: 'auto', padding: '0', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
-                    onClick={(e) => e.stopPropagation()}>
-                    <div style={{ background: getCategoryColor(detailsModal.category), color: 'white', padding: '24px 28px', borderRadius: '16px 16px 0 0' }}>
-                      <div style={{ fontSize: '0.75rem', opacity: 0.9, fontWeight: 700, marginBottom: '6px' }}>✦ {detailsModal.category?.toUpperCase()}</div>
-                      <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800 }}>{detailsModal.scheme_name}</h2>
+                <div className="modal-overlay" onClick={() => setDetailsModal(null)}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{ background: getCategoryColor(detailsModal.category) }}>
+                      <div className="modal-category">✦ {detailsModal.category?.toUpperCase()}</div>
+                      <h2 className="modal-title">{detailsModal.scheme_name}</h2>
                     </div>
-                    <div style={{ padding: '24px 28px' }}>
-                      <p style={{ color: '#4a5568', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '20px' }}>{detailsModal.summary}</p>
+                    <div className="modal-body">
+                      <p className="modal-summary">{detailsModal.summary}</p>
 
-                      <div style={{ display: 'grid', gap: '16px' }}>
-                        <div style={{ background: '#f7fafc', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #103567' }}>
-                          <h4 style={{ margin: '0 0 6px', color: '#103567', fontSize: '0.85rem' }}>📋 Eligibility Criteria</h4>
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#4a5568' }}>{detailsModal.eligibility_criteria}</p>
+                      <div className="modal-sections-grid">
+                        <div className="modal-section-box eligibility">
+                          <h4 className="modal-section-title">
+                            <Scale size={16} /> Eligibility Criteria
+                          </h4>
+                          <p className="modal-section-text">{detailsModal.eligibility_criteria}</p>
                         </div>
-                        <div style={{ background: '#f0fff4', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #276749' }}>
-                          <h4 style={{ margin: '0 0 6px', color: '#276749', fontSize: '0.85rem' }}>💰 Benefits</h4>
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#4a5568' }}>{detailsModal.benefits}</p>
+                        <div className="modal-section-box benefits">
+                          <h4 className="modal-section-title">
+                            <IndianRupee size={16} /> Benefits
+                          </h4>
+                          <p className="modal-section-text">{detailsModal.benefits}</p>
                         </div>
-                        <div style={{ background: '#fffaf0', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #dd6b20' }}>
-                          <h4 style={{ margin: '0 0 6px', color: '#dd6b20', fontSize: '0.85rem' }}>📄 Documents Required</h4>
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#4a5568' }}>{detailsModal.required_documents || 'Aadhar Card, Income Certificate, Bank Account'}</p>
+                        <div className="modal-section-box documents">
+                          <h4 className="modal-section-title">
+                            <FileText size={16} /> Documents Required
+                          </h4>
+                          <p className="modal-section-text">{detailsModal.required_documents || 'Aadhar Card, Income Certificate, Bank Account'}</p>
                         </div>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                          <div style={{ flex: 1, background: '#eef2ff', padding: '14px', borderRadius: '8px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600 }}>START DATE</div>
-                            <div style={{ fontWeight: 700, color: '#103567', fontSize: '0.9rem' }}>{detailsModal.start_date || 'N/A'}</div>
+                        <div className="modal-stats-row">
+                          <div className="modal-stat-box start-date">
+                            <div className="stat-label">START DATE</div>
+                            <div className="stat-value">{detailsModal.start_date || 'N/A'}</div>
                           </div>
-                          <div style={{ flex: 1, background: '#fff5f5', padding: '14px', borderRadius: '8px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600 }}>END DATE</div>
-                            <div style={{ fontWeight: 700, color: detailsModal.end_date === 'Ongoing' ? '#276749' : '#c53030', fontSize: '0.9rem' }}>{detailsModal.end_date || 'N/A'}</div>
+                          <div className="modal-stat-box end-date">
+                            <div className="stat-label">END DATE</div>
+                            <div className="stat-value" style={{ color: detailsModal.end_date === 'Ongoing' ? '#276749' : '#c53030' }}>
+                              {detailsModal.end_date || 'N/A'}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                        <button onClick={() => setDetailsModal(null)}
-                          style={{ flex: 1, background: 'none', border: '2px solid #ccc', color: '#666', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}>
+                      <div className="modal-footer">
+                        <button className="modal-close-btn" onClick={() => setDetailsModal(null)}>
                           Close
                         </button>
                         <button onClick={(e) => { handleApply(e, detailsModal); setDetailsModal(null); }}
-                          className="btn-apply" style={{ flex: 1, margin: 0 }}>
-                          Apply Now →
+                          className="btn-apply modal-apply-btn">
+                          Apply Now <ArrowRight size={20} />
                         </button>
                       </div>
                     </div>
@@ -1150,16 +1281,17 @@ function App() {
                     <input
                       id="ocr-file-input"
                       type="file"
-                      accept="image/*,.pdf"
+                      accept="image/*,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       onChange={handleFileUpload}
                       disabled={uploadStatus === 'uploading'}
                       style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', zIndex: 10 }}
                     />
                     <UploadCloud size={56} color={isDragOver ? '#4a6cf7' : '#103567'} style={{ margin: '0 auto 14px', display: 'block', transition: 'color 0.2s' }} />
-                    <h4 style={{ margin: '0 0 6px', color: '#103567', fontSize: '1.15rem', fontWeight: 700 }}>
-                      {isDragOver ? '📂 Release to Scan' : 'Drag & Drop a PDF or Image'}
+                    <h4 style={{ margin: '0 0 6px', color: '#103567', fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      {isDragOver ? <Folder size={20} /> : null}
+                      {isDragOver ? 'Release to Scan' : 'Drag & Drop a PDF or Image'}
                     </h4>
-                    <p style={{ color: '#777', fontSize: '0.88rem', margin: '0 0 16px' }}>Supports PDF, PNG, JPG, JPEG &bull; Max 10 MB</p>
+                    <p style={{ color: '#777', fontSize: '0.88rem', margin: '0 0 16px' }}>Supports PDF, DOCX, Word, PNG, JPG, JPEG &bull; Max 20 MB</p>
                     <button
                       style={{
                         pointerEvents: 'none',
@@ -1169,7 +1301,8 @@ function App() {
                         cursor: 'pointer',
                       }}
                     >
-                      {uploadStatus === 'uploading' ? '⏳ Scanning...' : 'Browse Files'}
+                      {uploadStatus === 'uploading' ? <RefreshCcw size={18} className="spinning" /> : 'Browse Files'}
+                      {uploadStatus === 'uploading' ? ' Scanning...' : ''}
                     </button>
                   </div>
 
@@ -1182,7 +1315,7 @@ function App() {
                         borderRadius: '20px', padding: '4px 12px',
                         fontSize: '0.82rem', color: '#103567', fontWeight: 600,
                       }}>
-                        📄 {selectedFile.name}
+                        <FileSearch size={14} /> {selectedFile.name}
                         <span style={{ color: '#888', fontWeight: 400 }}>({(selectedFile.size / 1024).toFixed(0)} KB)</span>
                       </span>
                       {(uploadStatus === 'success' || uploadStatus === 'error') && (
@@ -1197,14 +1330,18 @@ function App() {
                   {/* Scan Step Tracker */}
                   {uploadStatus === 'uploading' && (
                     <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px 24px' }}>
-                      <p style={{ fontWeight: 700, color: '#103567', marginBottom: '16px', fontSize: '0.95rem' }}>🔍 Scanning Document...</p>
+                      <p style={{ fontWeight: 700, color: '#103567', marginBottom: '16px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Search size={18} className="spinning" /> Scanning Document...
+                      </p>
                       {[
-                        { step: 1, label: 'Uploading document to server', icon: '⬆️' },
-                        { step: 2, label: scanStep >= 2 && selectedFile?.name?.toLowerCase().endsWith('.pdf') ? 'Extracting text from PDF' : 'Running Tesseract.js OCR on image', icon: '📖' },
-                        { step: 3, label: 'Sending to Gemini AI for analysis', icon: '🤖' },
+                        { step: 1, label: 'Uploading document to server', icon: <UploadCloud size={16} /> },
+                        { step: 2, label: scanStep >= 2 && selectedFile?.name?.toLowerCase().endsWith('.pdf') ? 'Extracting text from PDF' : 'Running Tesseract.js OCR on image', icon: <BookOpen size={16} /> },
+                        { step: 3, label: 'Sending to Gemini AI for analysis', icon: <Bot size={16} /> },
                       ].map(({ step, label, icon }) => (
                         <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', opacity: scanStep >= step ? 1 : 0.35, transition: 'opacity 0.4s' }}>
-                          <span style={{ fontSize: '1.2rem' }}>{scanStep > step ? '✅' : scanStep === step ? '⏳' : icon}</span>
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px' }}>
+                            {scanStep > step ? <CheckCircle2 size={18} color="#198754" /> : scanStep === step ? <RefreshCcw size={18} className="spinning" color="#103567" /> : icon}
+                          </span>
                           <span style={{ fontSize: '0.9rem', color: scanStep >= step ? '#103567' : '#999', fontWeight: scanStep === step ? 700 : 400 }}>{label}</span>
                         </div>
                       ))}
@@ -1217,7 +1354,7 @@ function App() {
                   {/* Error */}
                   {uploadStatus === 'error' && (
                     <div style={{ marginTop: '20px', background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '10px', padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+                      <AlertTriangle size={24} color="#e53e3e" />
                       <div>
                         <p style={{ color: '#c53030', fontWeight: 700, margin: 0 }}>{errorMessage || 'Document Analysis Failed'}</p>
                         <p style={{ color: '#742a2a', fontSize: '0.87rem', marginTop: '4px' }}>
@@ -1255,7 +1392,9 @@ function App() {
                         {extractedData && (
                           <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #103567', borderRadius: '8px', background: '#eef2ff' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                              <h4 style={{ margin: 0, color: '#103567', fontSize: '0.95rem', fontWeight: 700 }}>🔍 Extracted Profile Data</h4>
+                              <h4 style={{ margin: 0, color: '#103567', fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FileSearch size={16} /> Extracted Profile Data
+                              </h4>
                               {!syncStatus && (
                                 <button
                                   onClick={handleSyncProfile}
@@ -1265,13 +1404,13 @@ function App() {
                                 </button>
                               )}
                               {syncStatus === 'syncing' && <span style={{ fontSize: '0.8rem', color: '#103567' }}>⌛ Syncing...</span>}
-                              {syncStatus === 'success' && <span style={{ fontSize: '0.8rem', color: '#276749', fontWeight: 700 }}>✅ Profile Updated</span>}
+                              {syncStatus === 'success' && <span style={{ fontSize: '0.8rem', color: '#276749', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={14} /> Profile Updated</span>}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', fontSize: '0.85rem' }}>
                               <div><span style={{ color: '#666' }}>Name:</span> <br /> <strong>{extractedData.full_name || '---'}</strong></div>
                               <div><span style={{ color: '#666' }}>Survey No:</span> <br /> <strong>{extractedData.survey_number || '---'}</strong></div>
                               <div><span style={{ color: '#666' }}>Land Area:</span> <br /> <strong>{extractedData.land_area || '---'}</strong></div>
-                              <div><span style={{ color: '#666' }}>Village:</span> <br /> <strong>{extractedData.village || '---'}</strong></div>
+                              <div><span style={{ color: '#666' }}>Village:</span> <br /> <strong style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>{extractedData.village || '---'} {extractedData.village && <Home size={12} />}</strong></div>
                               <div><span style={{ color: '#666' }}>Taluka:</span> <br /> <strong>{extractedData.taluka || '---'}</strong></div>
                               <div><span style={{ color: '#666' }}>District:</span> <br /> <strong>{extractedData.district || '---'}</strong></div>
                             </div>
@@ -1294,7 +1433,7 @@ function App() {
                         {/* Eligible Schemes Section — ALWAYS VISIBLE */}
                         <div className="pdf-only-schemes" style={{ marginTop: '24px' }}>
                           <h3 style={{ borderBottom: '2px solid #103567', paddingBottom: '8px', color: '#103567', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            🏛️ Eligible Government Schemes
+                            <Building2 size={20} /> Eligible Government Schemes
                           </h3>
                           <p style={{ fontSize: '0.82rem', fontStyle: 'italic', color: '#666', marginBottom: '12px' }}>
                             Based on your uploaded document{extractedData?.survey_number ? ` (Survey No: ${extractedData.survey_number})` : ''} and profile data.
@@ -1328,8 +1467,8 @@ function App() {
                                   <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#666', fontSize: '0.78rem' }}>{s.documents}</td>
                                   <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0' }}>
                                     <a href={s.portal} target="_blank" rel="noopener noreferrer"
-                                      style={{ color: '#103567', fontWeight: 700, textDecoration: 'none', fontSize: '0.8rem' }}>
-                                      Apply →
+                                      style={{ color: '#103567', fontWeight: 700, textDecoration: 'none', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      Apply <ArrowRight size={14} />
                                     </a>
                                   </td>
                                 </tr>
@@ -1337,8 +1476,9 @@ function App() {
                             </tbody>
                           </table>
 
-                          <div style={{ marginTop: '16px', padding: '12px 14px', background: '#eef2ff', borderLeft: '4px solid #103567', borderRadius: '4px', fontSize: '0.82rem', color: '#2d3748' }}>
-                            <strong>💡 Tip:</strong> Visit the <strong>Browse Schemes</strong> tab for detailed information on each scheme including full eligibility criteria, start/end dates, and application guidance.
+                          <div style={{ marginTop: '16px', padding: '12px 14px', background: '#eef2ff', borderLeft: '4px solid #103567', borderRadius: '4px', fontSize: '0.82rem', color: '#2d3748', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <Lightbulb size={20} color="#103567" style={{ flexShrink: 0 }} />
+                            <span><strong>Tip:</strong> Visit the <strong>Browse Schemes</strong> tab for detailed information on each scheme including full eligibility criteria, start/end dates, and application guidance.</span>
                           </div>
                         </div>
                       </div>
@@ -1347,7 +1487,7 @@ function App() {
                         <button
                           onClick={() => navigator.clipboard?.writeText(pdfInsights)}
                           style={{ background: 'none', border: '1px solid #103567', borderRadius: '6px', padding: '8px 16px', color: '#103567', cursor: 'pointer', fontSize: '0.86rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
-                        >📋 Copy Text</button>
+                        ><ClipboardList size={16} /> Copy Text</button>
 
                         <button
                           onClick={() => {
@@ -1380,132 +1520,137 @@ function App() {
               )}
 
               {activeTab === 'location' && (
-                <div className="tab-content taaza-dashboard">
-                  <div className="location-tracer-container">
-                    <div className="tracer-header">
-                      <h3>🗺️ Nearby Government Offices</h3>
-                      <p>Locate government authorities near your location using Google Earth view.</p>
+                <div className="tab-content">
+                  {!locationParams ? (
+                    <div className="location-loading-state" style={{ height: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', justifyContent: 'center', background: 'rgba(0,0,0,0.02)', borderRadius: '24px' }}>
+                      <div className="btn-spinner" style={{ width: '40px', height: '40px', borderColor: 'rgba(16, 53, 103, 0.1)', borderTopColor: '#103567' }}></div>
+                      <p style={{ fontWeight: 700, color: '#103567' }}>Sychronizing with Satellites...</p>
                     </div>
-                    {/* Office Category Buttons */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '16px 0' }}>
-                      {[
-                        { label: '🏛️ All Govt Offices', query: 'government+offices' },
-                        { label: '📋 Tahsildar Office', query: 'tahsildar+office' },
-                        { label: '🏢 Collector Office', query: 'collector+office' },
-                        { label: '🏘️ Gram Panchayat', query: 'gram+panchayat' },
-                        { label: '🌾 Krishi Bhavan', query: 'krishi+bhavan+agriculture+office' },
-                        { label: '🏦 Banks', query: 'nationalized+bank' },
-                        { label: '📮 Post Office', query: 'post+office' },
-                      ].map((item) => (
-                        <button
-                          key={item.query}
-                          onClick={() => { setMapSearchQuery(item.query); setShowMapPins(true); }}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            border: mapSearchQuery === item.query ? '2px solid #103567' : '1px solid #ddd',
-                            background: mapSearchQuery === item.query ? '#103567' : 'white',
-                            color: mapSearchQuery === item.query ? 'white' : '#333',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            fontSize: '0.82rem',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                    {locationParams ? (
-                      <div style={{ position: 'relative', width: '100%', height: '500px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-                        <iframe
-                          title="Government Offices Locator"
-                          width="100%"
-                          height="100%"
-                          frameBorder="0"
-                          style={{ border: 'none' }}
-                          referrerPolicy="no-referrer-when-downgrade"
-                          src={showMapPins
-                            ? `https://www.google.com/maps/embed/v1/search?key=AIzaSyBo76tcZqaSv8KSTeoAUhEdtnTLW28HTtg&q=${mapSearchQuery}&center=${locationParams.lat},${locationParams.lng}&zoom=13`
-                            : `https://www.google.com/maps/embed/v1/place?key=AIzaSyBo76tcZqaSv8KSTeoAUhEdtnTLW28HTtg&q=${locationParams.lat},${locationParams.lng}&zoom=14&maptype=satellite`}
-                          allowFullScreen>
-                        </iframe>
-                        <button
-                          className="btn-apply"
-                          onClick={() => setShowMapPins(!showMapPins)}
-                          style={{
-                            position: 'absolute',
-                            bottom: '20px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            padding: '12px 24px',
-                            fontSize: '0.9rem',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                            zIndex: 10,
-                            margin: 0,
-                            borderRadius: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <span style={{ fontSize: '1.1rem' }}>{showMapPins ? '🛰️' : '🏛️'}</span>
-                          {showMapPins ? 'Satellite View' : 'Search Offices'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="location-loading-state">
-                        📍 Waiting for location access to show nearby government offices...
-                      </div>
-                    )}
-                  </div>
+                  ) : (
+                    <LocationMap 
+                      locationParams={locationParams} 
+                      searchQuery={mapSearchQuery} 
+                      onQueryChange={setMapSearchQuery} 
+                    />
+                  )}
                 </div>
               )}
 
               {activeTab === 'fraud' && (
                 <div className="tab-content taaza-dashboard">
-                  <div className="fraud-header">
-                    <div>
+                  <div className="taaza-header">
+                    <div className="taaza-header-text">
+                      <div className="taaza-live-badge"><span className="live-dot"></span> LIVE</div>
                       <h3>{t('tab_taaza')}</h3>
                       <p>{t('taaza_desc')}</p>
                     </div>
+                    <button 
+                      className={`taaza-refresh-btn ${isSyncingNews ? 'spinning' : ''}`}
+                      onClick={syncNews}
+                      title="Sync Live News"
+                      disabled={isSyncingNews}
+                    >
+                      <RefreshCcw size={20} />
+                      <span>{isSyncingNews ? 'Syncing...' : 'Refresh Feed'}</span>
+                    </button>
                   </div>
 
-                  <div className="taaza-khabar-container">
-                    <div className="marquee-wrapper">
-                      <div className="marquee-content">
-                        {taazaKhabarNews.map((news, index) => (
-                          <div
-                            key={news.id}
-                            className="news-item curved-square"
-                          >
-                            <div className="news-header">
-                              <span className="news-title">{news.title}</span>
-                              <span className="news-meta">{news.date} | {news.time} IST</span>
-                            </div>
-                            <div className="news-desc">
-                              {news.description}
-                            </div>
-                          </div>
-                        ))}
-                        {/* Duplicate for infinite scrolling effect */}
-                        {taazaKhabarNews.map((news, index) => (
-                          <div
-                            key={`dup-${news.id}`}
-                            className="news-item curved-square"
-                          >
-                            <div className="news-header">
-                              <span className="news-title">{news.title}</span>
-                              <span className="news-meta">{news.date} | {news.time} IST</span>
-                            </div>
-                            <div className="news-desc">
-                              {news.description}
-                            </div>
-                          </div>
-                        ))}
+                  <div className="taaza-feed">
+                    {taazaKhabarNews.length === 0 ? (
+                      <div className="taaza-loading-state">
+                        <div className="taaza-shimmer-card"></div>
+                        <div className="taaza-shimmer-card"></div>
+                        <div className="taaza-shimmer-card"></div>
+                        <p className="taaza-loading-text" style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                          <Sprout size={20} color="#198754" /> Fetching the latest agricultural news...
+                        </p>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="taaza-grid">
+                          {taazaKhabarNews.map((newsItem, idx) => (
+                            <a
+                              key={newsItem._id || idx}
+                              href={newsItem.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="taaza-card"
+                              style={{ animationDelay: `${(idx % 10) * 60}ms` }}
+                            >
+                              <div className="taaza-card-image">
+                                <img
+                                  src={newsItem.image_url || 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=600&auto=format&fit=crop'}
+                                  alt="news"
+                                  loading="lazy"
+                                  onError={e => { e.target.src = 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=600&auto=format&fit=crop'; }}
+                                />
+                                <div className={`taaza-badge ${newsItem.priority > 35 ? 'trending' : 'latest'}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  {newsItem.priority > 35 ? <Flame size={12} /> : <Newspaper size={12} />}
+                                  {newsItem.priority > 35 ? 'Trending' : 'Latest'}
+                                </div>
+                              </div>
+                              <div className="taaza-card-body">
+                                <div className="taaza-meta">
+                                  <span className="taaza-source">{newsItem.source || 'Agriculture Portal'}</span>
+                                  <span className="taaza-dot">•</span>
+                                  <span className="taaza-date">{newsItem.published_date || 'Today'}</span>
+                                </div>
+                                <h4 className="taaza-title">{newsItem.title}</h4>
+                                <p className="taaza-summary">{newsItem.summary}</p>
+                                <div className="taaza-read-more" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  Read Full Article <ArrowRight size={14} />
+                                </div>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+
+                        {hasMoreNews && (
+                          <div className="taaza-load-more-container">
+                            <button
+                              className="taaza-load-more-btn"
+                              onClick={loadMoreNews}
+                              disabled={newsLoading}
+                            >
+                              {newsLoading ? (
+                                <><span className="btn-spinner"></span> Loading...</>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Newspaper size={18} /> Show More News</div>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {!hasMoreNews && taazaKhabarNews.length > 0 && (
+                          <p className="taaza-end-message" style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                            <CheckCircle2 size={16} /> You've caught up with all the latest news!
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'crop-doctor' && (
+                <div className="tab-content">
+                  <CropDoctor />
+                </div>
+              )}
+
+              {activeTab === 'msp' && (
+                <div className="tab-content">
+                  <MSPTracker />
+                </div>
+              )}
+
+              {activeTab === 'marketplace' && (
+                <div className="tab-content">
+                  <Marketplace 
+                    isDarkMode={isDarkMode} 
+                    language={selectedLanguage} 
+                    dictionary={DICTIONARY[selectedLanguage]} 
+                  />
                 </div>
               )}
             </main>
@@ -1525,7 +1670,7 @@ function App() {
                   <>
                     <CheckCircle size={56} color="#25D366" />
                     <h4 style={{ marginTop: '16px' }}>Application Successful!</h4>
-                    <p>Future eligibility alerts and confirmation receipt have been linked to your registered mobile via <strong>WhatsApp (+91 8080484908)</strong>.</p>
+                    <p>Future eligibility alerts and confirmation receipt have been linked to your registered mobile via <strong>WhatsApp (+91 9529707672)</strong>.</p>
                   </>
                 )}
               </div>
@@ -1577,13 +1722,17 @@ function App() {
           </div>
 
           {/* Inject VAPI Assistant Widget */}
-          <VapiChatAssistant />
-        </div>
+          <VapiChatAssistant 
+            language={selectedLanguage} 
+            dictionary={DICTIONARY[selectedLanguage]} 
+          />
+        </>
       } />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/profile" element={<Profile />} />
     </Routes>
-  );
+  </div>
+);
 }
 
 export default App;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import './Profile.css';
 
 function Profile() {
@@ -154,8 +155,8 @@ function Profile() {
         {/* Right Side: Form */}
         <div className="profile-form-section">
           <div className="profile-header">
-            <button className="back-btn" onClick={() => navigate('/')}>
-              ← Back to Schemes
+            <button className="back-btn" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ArrowLeft size={16} /> Back to Schemes
             </button>
             <h1>My Profile</h1>
             <p className="profile-subtitle">Complete your details to unlock smart scheme recommendations.</p>
@@ -260,7 +261,9 @@ function Profile() {
                         setIsEditing(false);
                         setCaptchaError('');
                     }} className="cancel-btn btn">Cancel</button>
-                    <button type="submit" className="save-btn btn" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save & Continue →'}</button>
+                    <button type="submit" className="save-btn btn" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isLoading ? 'Saving...' : 'Save & Continue'} <ArrowRight size={18} />
+                    </button>
                   </>
                 )}
               </div>

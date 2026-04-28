@@ -23,10 +23,8 @@ router.get('/profile', async (req, res) => {
       return res.status(400).json({ success: false, message: 'uid is required' });
     }
     const user = await User.findOne({ user_id: uid });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    res.json({ success: true, user });
+    // Return null user instead of 404 so frontend handles it gracefully
+    res.json({ success: true, user: user || null });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

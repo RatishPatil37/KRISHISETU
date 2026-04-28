@@ -1,0 +1,12 @@
+node_modules
+.venv
+.vscode
+*.log
+.git
+.env
+LokSevaAI_MERN/frontend/node_modules
+LokSevaAI_MERN/backend/node_modules
+LokSevaAI_MERN/backend/uploads/*
+!LokSevaAI_MERN/backend/uploads/.gitkeep
+build
+dist

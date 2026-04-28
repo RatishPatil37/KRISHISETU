@@ -46,7 +46,8 @@ function Profile() {
     if (!authUser?.email) return;
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/users/profile/${authUser.email}`);
+      const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000';
+      const response = await axios.get(`${BASE_URL}/api/users/profile/${authUser.email}`);
       const data = response.data.user || response.data;
       
       setProfile(prev => ({ 
@@ -95,7 +96,8 @@ function Profile() {
     setMessage('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/users/profile', profile);
+      const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000';
+      const response = await axios.post(`${BASE_URL}/api/users/profile`, profile);
       const data = response.data.user || response.data;
       setProfile(prev => ({ ...prev, ...data }));
       setIsEditing(false);

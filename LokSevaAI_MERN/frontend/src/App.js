@@ -13,7 +13,7 @@ import {
   Sun, Moon, MessageCircle, Smartphone, Download, Filter, Search, RefreshCcw, 
   ClipboardList, FileSearch, CalendarDays, IndianRupee, CircleHelp, CheckCircle2, 
   Scale, Zap, Sparkles, Shield, Shuffle, MapPin, Home, User, ArrowRight, ArrowLeft, X,
-  Building2, Building, Sprout, Landmark, Mail, Inbox, Folder, BookOpen, Bot, Lightbulb, Flame, Newspaper
+  Building2, Building, Sprout, Landmark, Mail, Inbox, Folder, BookOpen, Bot, Lightbulb, Flame, Newspaper, Database
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import LocationMap from './components/LocationMap';

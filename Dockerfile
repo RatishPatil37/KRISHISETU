@@ -1,7 +1,7 @@
 # ============================================
 # STAGE 1: Build React Frontend
 # ============================================
-FROM node:18-slim AS frontend-builder
+FROM node:20-slim AS frontend-builder
 
 WORKDIR /build
 
@@ -12,14 +12,15 @@ RUN npm install
 # Copy frontend source code
 COPY LokSevaAI_MERN/frontend/ ./
 
-# Build the production React app
+# Build the production React app (with memory limit to prevent OOM in Docker)
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build
 
 
 # ============================================
 # STAGE 2: Production Server
 # ============================================
-FROM node:18-slim
+FROM node:20-slim
 
 # Install system dependencies for Tesseract OCR and PDF processing
 RUN apt-get update && apt-get install -y \

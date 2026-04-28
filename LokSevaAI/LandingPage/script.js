@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // After Google OAuth Supabase drops the user straight onto the
 // data collection app (port 5173) with the auth hash in the URL.
-const MAIN_PAGE_URL = 'http://localhost:5173';
+const MAIN_PAGE_URL = window.location.origin + '/app';
 
 // ── Supabase singleton ─────────────────────────────────────
 let _sb = null;
@@ -23,7 +23,7 @@ async function loginWithGoogle() {
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: 'http://localhost:5000/app/auth/callback',
+            redirectTo: window.location.origin + '/app/auth/callback',
         },
     });
     if (error) {

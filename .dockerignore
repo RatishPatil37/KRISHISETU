@@ -1,12 +1,38 @@
+# Dependencies (will be installed fresh inside Docker)
 node_modules
+**/node_modules
+
+# Python virtual env
 .venv
+uv.lock
+
+# IDE / Editor
 .vscode
-*.log
+.idea
+
+# Git
 .git
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+
+# Environment files (secrets are set via Render dashboard, not baked into image)
 .env
-LokSevaAI_MERN/frontend/node_modules
-LokSevaAI_MERN/backend/node_modules
-LokSevaAI_MERN/backend/uploads/*
-!LokSevaAI_MERN/backend/uploads/.gitkeep
-build
+LokSevaAI_MERN/backend/.env
+LokSevaAI_MERN/frontend/.env
+
+# Build artifacts (frontend is built inside Docker)
+LokSevaAI_MERN/frontend/build
 dist
+
+# Uploads (temporary files, not needed in image)
+LokSevaAI_MERN/backend/uploads/*
+
+# Misc
+*.bat
+commit_history.log
+telemetry.json
+Dockerfile
+.dockerignore

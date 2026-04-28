@@ -836,6 +836,30 @@ function App() {
     }
   };
 
+  // ── Auth Guards: prevent dashboard flash for unauthenticated users ────────
+  if (authLoading) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', minHeight: '100vh',
+        background: '#0f2518', color: '#fff', fontFamily: 'sans-serif', gap: '16px'
+      }}>
+        <div style={{
+          width: 40, height: 40, border: '4px solid rgba(255,255,255,0.2)',
+          borderTop: '4px solid #48bb78', borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <p style={{ fontSize: 14, color: '#a0aec0' }}>Loading KrishiSetu...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // If not authenticated and not on auth callback, render nothing while redirect fires
+  if (!user && !window.location.pathname.includes('/auth/callback')) {
+    return null;
+  }
+
   return (
     <div className={`app ${isDarkMode ? 'dark-mode' : ''}`} style={{ fontSize: `${16 * fontSizeMultiplier}px` }}>
       <Routes>

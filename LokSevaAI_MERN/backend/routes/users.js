@@ -33,11 +33,16 @@ router.get('/profile', async (req, res) => {
 // Create or update user profile
 router.post('/profile', async (req, res) => {
   try {
-    const { email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value } = req.body;
+    const { uid, email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value } = req.body;
 
-    let user = await User.findOne({ email });
+    let user = null;
+    if (uid) user = await User.findOne({ user_id: uid });
+    if (!user && email) user = await User.findOne({ email });
+    if (!user && phone) user = await User.findOne({ phone });
 
     if (user) {
+      if (uid) user.user_id = uid;
+      if (email && !user.email) user.email = email;
       user.name = name ?? user.name;
       user.phone = phone ?? user.phone;
       user.age = age ?? user.age;
@@ -49,7 +54,7 @@ router.post('/profile', async (req, res) => {
       user.location = location ?? user.location;
       user.income_value = income_value ?? user.income_value;
     } else {
-      user = new User({ email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value });
+      user = new User({ user_id: uid, email, name, phone, age, state, incomeClass, language, district, taluka, location, income_value });
     }
 
     const savedUser = await user.save();

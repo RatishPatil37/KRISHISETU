@@ -876,9 +876,10 @@ function App() {
           <div className="app-container">
             {/* Left Sidebar */}
             <aside className="sidebar">
-              <div className="sidebar-header">
-                <h1>KRISHISETU</h1>
-                <p>Smart Scheme Finder</p>
+              <div className="sidebar-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <img src="/krishisetu_logo.png" alt="KrishiSetu Logo" style={{ height: '54px', borderRadius: '12px', marginBottom: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} />
+                <h1 style={{ margin: '0 0 4px 0' }}>KRISHISETU</h1>
+                <p style={{ margin: 0 }}>Smart Scheme Finder</p>
               </div>
 
               {/* Language Section */}
@@ -945,7 +946,7 @@ function App() {
                     <p className="user-email name">
                       {userProfile?.name || userProfile?.full_name || 'Farmer'}
                     </p>
-                    <p className="user-email sub">{user.email}</p>
+                    <p className="user-email sub">{user.email || user.phone}</p>
                     
                     <div className="profile-info-box">
                       {(userProfile?.income_category || userProfile?.incomeClass) && (

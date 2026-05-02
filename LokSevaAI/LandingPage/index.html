@@ -4,110 +4,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KrishiSetu | Advanced Landing Page</title>
+    <title>KrishiSetu | Organic Tech-Forward</title>
+    <!-- Google Fonts: Outfit for clean, modern, approachable typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;700&display=swap" rel="stylesheet">
+    
     <!-- Supabase JS (must load before script.js) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <!-- GSAP -->
+    
+    <!-- GSAP & Lenis for fluid, buttery-smooth scrolling and animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://unpkg.com/split-type"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
 </head>
 
 <body>
-    <nav class="navbar">
-        <div class="nav-left">
-            <button id="about-btn" class="curved-rect">About</button>
+    <!-- Custom Cursor -->
+    <div class="custom-cursor"></div>
+
+    <!-- Preloader Animation -->
+    <div id="preloader">
+        <div class="preloader-content">
+            <img src="waving_farmer.png" alt="Farmer Waving" class="waving-farmer">
+            <div class="loading-text">Cultivating...</div>
         </div>
-        <div class="nav-right">
-            <button id="login-btn" class="curved-rect">Login with Google</button>
+    </div>
+
+    <!-- Grain Noise Overlay for tactile feel -->
+    <div class="noise-overlay"></div>
+
+    <!-- Fluid background shapes -->
+    <div class="fluid-bg-container" id="bg-container">
+        <div class="fluid-shape shape-1" data-speed="0.8"></div>
+        <div class="fluid-shape shape-2" data-speed="1.2"></div>
+        <div class="fluid-shape shape-3" data-speed="0.5"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar glass-nav">
+        <div class="nav-brand" style="display: flex; align-items: center; gap: 10px;">
+            <img src="krishisetu_logo.png" alt="KrishiSetu Logo" style="height: 36px; border-radius: 8px;">
+            <span class="logo-text">KrishiSetu</span>
+        </div>
+        <div class="nav-links">
+            <!-- Language Dropdown -->
+            <div class="lang-dropdown">
+                <button class="nav-btn subtle lang-btn">
+                    <span class="globe-icon">🌐</span> EN
+                </button>
+                <div class="lang-menu">
+                    <a href="#" class="active">English</a>
+                    <a href="#">हिन्दी (Hindi)</a>
+                    <a href="#">मराठी (Marathi)</a>
+                </div>
+            </div>
+            <button id="about-btn" class="nav-btn subtle magnetic">Our Vision</button>
+            <button id="login-btn" class="nav-btn primary google-btn liquid-btn">
+                <span><img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" width="18"> Login</span>
+            </button>
         </div>
     </nav>
 
-    <div class="rolling-container">
-        <img src="ashok-chakra-e1426766122112.png" id="ashok-chakra" alt="Ashok Chakra">
+    <!-- Page 1: Hero Space (Awe-inspiring open space) -->
+    <section class="section hero-section" id="hero">
+        <!-- Floating Ambient Bokeh (Replacing Emojis) -->
+        <div class="particles">
+            <div class="bokeh-orb orb1"></div>
+            <div class="bokeh-orb orb2"></div>
+            <div class="bokeh-orb orb3"></div>
+            <div class="bokeh-orb orb4"></div>
+        </div>
+
+        <div class="hero-content">
+            <div class="badge fade-up">Pioneering Agritech</div>
+            <h1 class="project-name split-text">Empowering the roots of our nation.</h1>
+            <p class="hero-subtitle fade-up stagger-2">A profoundly natural, highly advanced ecosystem designed to bridge the gap between farmers and the future. Experience seamless access to government welfare, AI diagnostics, and community growth.</p>
+            <div class="hero-ctas fade-up stagger-3">
+                <button class="cta-btn primary liquid-btn magnetic" id="hero-explore-btn">
+                    <span>Explore the Ecosystem</span>
+                </button>
+                <button class="cta-btn secondary magnetic" id="pm-kisan-btn">
+                    <span class="icon">✨</span> Check PM-Kisan Eligibility
+                </button>
+            </div>
+        </div>
+        <div class="hero-visual parallax-card" data-speed="1.1">
+            <div class="glass-card main-glass silk-border swaying">
+                <div class="glass-header">
+                    <div class="glass-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="glass-title">KrishiSetu Assistant</div>
+                </div>
+                <div class="glass-body">
+                    <div class="chat-row bot">
+                        <div class="chat-bubble">Hello! I am your KrishiSetu Assistant. How can I help your farm thrive today?</div>
+                    </div>
+                    <div class="chat-row user">
+                        <div class="chat-bubble">I need to check my eligibility for PM-Kisan.</div>
+                    </div>
+                    <div class="chat-row bot">
+                        <div class="chat-bubble">Certainly. Let's securely analyze your profile and find exactly what you're entitled to.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SVG Wave Divider -->
+    <div class="wave-divider">
+        <svg viewBox="0 0 1440 120" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,48C1120,43,1280,53,1360,58.7L1440,64L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z" fill="rgba(255,255,255,0.02)"></path>
+        </svg>
     </div>
 
-    <!-- Page 1: Parliament & Title -->
-    <section class="section" id="page1">
-        <div class="bg-wrapper">
-            <img src="Indian-Parliament.png" id="parliament-img" alt="Parliament of India">
-        </div>
-        <div class="content">
-            <h1 class="project-name">KRISHISETU</h1>
-        </div>
-    </section>
-
-    <!-- Page 2: Mac UI & Problem Statement -->
-    <section class="section" id="page2">
-        <!-- Static Ashok Chakra on the left of this page -->
-        <div class="chakra-page-container">
-            <img src="ashok-chakra-e1426766122112.png" class="rotating-chakra" alt="Ashok Chakra">
-        </div>
-
-        <div class="mac-container">
-            <div class="mac-window">
-                <div class="mac-header">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                    <div class="mac-title">KrishiSetu Assistant</div>
+    <!-- Page 2: Narrative Discovery -->
+    <section class="section narrative-section" id="narrative">
+        <!-- AI Insights Sub-section -->
+        <div class="narrative-row">
+            <div class="narrative-text parallax-text" data-speed="0.95">
+                <h2 class="section-title split-text">Precision meets intuition.</h2>
+                <p class="section-desc fade-up">Harness the power of AI Crop Diagnostics and real-time Fraud Guard technology. We transform complex agricultural data into clear, actionable insights that feel completely natural to use.</p>
+                <div class="feature-pills">
+                    <span class="pill">Smart Discovery</span>
+                    <span class="pill">Voice Support</span>
+                    <span class="pill">Anomaly Detection</span>
                 </div>
-                <div class="mac-chat-content">
-                    <div class="chat-message user">
-                        <div class="bubble">What is the goal of this project?</div>
+            </div>
+            <div class="narrative-visual" data-speed="1.05">
+                <div class="glass-card image-card silk-border organic-mask organic-hover magnetic">
+                    <!-- Internal Parallax Image - UI Mockup -->
+                    <div class="internal-parallax">
+                        <img src="ai_crop_mockup.png" alt="AI Crop Diagnostics UI">
                     </div>
-                    <div class="chat-message assistant">
-                        <div class="bubble">
-                            <b>KRISHISETU</b>: Develop an AI-driven multilingual system that helps citizens understand and
-                            access government welfare schemes while ensuring inclusivity.
-                        </div>
-                    </div>
-                    <div class="chat-message user">
-                        <div class="bubble">What are the key technical features?</div>
-                    </div>
-                    <div class="chat-message assistant">
-                        <div class="bubble">
-                            <ul class="tech-goals-list">
-                                <li><b>Smart Discovery</b>: Personalized recommendations based on eligibility.</li>
-                                <li><b>Voice Support</b>: Multilingual AI for 22+ Indian languages.</li>
-                                <li><b>Fraud Guard</b>: Detecting anomalies in real-time.</li>
-                                <li><b>Accountability</b>: Reducing leakages and improving transparency.</li>
-                            </ul>
-                        </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Community Roots Sub-section -->
+        <div class="narrative-row reverse">
+            <div class="narrative-text parallax-text" data-speed="0.95">
+                <h2 class="section-title split-text">Rooted in community.</h2>
+                <p class="section-desc fade-up">Our Community Marketplace connects farmers directly with the ecosystem. Zero commissions, pure transparency, and sustainable growth for everyone involved.</p>
+                <div class="feature-pills">
+                    <span class="pill">Direct Marketplace</span>
+                    <span class="pill">MSP Tracker</span>
+                    <span class="pill">Local Support</span>
+                </div>
+            </div>
+            <div class="narrative-visual" data-speed="1.05">
+                <div class="glass-card image-card silk-border organic-mask organic-hover magnetic">
+                    <!-- Internal Parallax Image -->
+                    <div class="internal-parallax">
+                        <img src="terraced_farmer.png" alt="Terraced Farmer">
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Page 3: About Us -->
-    <section class="section" id="page3">
-        <div class="about-content">
-            <h1 class="about-title">About Us</h1>
-            <div class="footer-buttons">
-                <button class="curved-rect">Contact</button>
-                <button class="curved-rect">Mail</button>
-                <button class="curved-rect">Support</button>
+    <!-- Page 3: Warm Grounded Call-to-Action -->
+    <section class="section cta-section" id="cta">
+        <div class="cta-wrapper glass-card warm-glow silk-border pop-in parallax-card" data-speed="1.02">
+            <div class="cta-content text-center">
+                <h2 class="cta-title split-text">Ready for the harvest?</h2>
+                <p class="cta-text fade-up">Step into a beautifully curated environment where your agricultural journey meets seamless, glowing interfaces. Join the community today.</p>
+                <button class="google-login-large nav-btn primary liquid-btn fade-up">
+                    <span><img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" width="24"> Sign in with Google</span>
+                </button>
             </div>
-            <p class="developed-by">Developed by the <b>1% Team</b></p>
+            <p class="developed-by fade-up">Cultivated with care by the <b>1% Team</b></p>
         </div>
     </section>
 
-    <!-- Page 4: Final Login -->
-    <section class="section" id="page4">
-        <div class="login-container">
-            <h1>Ready to get started?</h1>
-            <p>Access the KrishiSetu Dashboard</p>
-            <button class="google-login-large curved-rect">
-                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" width="20">
-                Sign in with Google
-            </button>
+    <!-- Glassmorphic Footer -->
+    <footer class="glass-footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo-icon">🌿</span>
+                <span class="logo-text">KrishiSetu</span>
+            </div>
+            <div class="footer-links">
+                <a href="#" class="magnetic">About Us</a>
+                <a href="#" class="magnetic">Contact</a>
+                <a href="#" class="magnetic">Privacy Policy</a>
+            </div>
         </div>
-    </section>
+        <div class="footer-bottom">
+            <p>&copy; 2026 KrishiSetu. Built for Farmers, by the 1% Team.</p>
+        </div>
+    </footer>
+
+    <!-- Auth Modal Overlay -->
+    <div id="auth-modal" class="modal-overlay hidden">
+        <div class="auth-card">
+            <button id="close-modal" class="close-btn">&times;</button>
+            <div class="auth-header">
+                <h2>Welcome to KrishiSetu</h2>
+                <p>Sign in to access your dashboard</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="phone">Phone (OTP)</button>
+                <button class="auth-tab" data-tab="google">Google</button>
+            </div>
+
+            <div class="auth-content">
+                <!-- Phone Auth Form -->
+                <div id="phone-auth" class="auth-panel active">
+                    <div id="send-otp-step">
+                        <label>Phone Number</label>
+                        <div class="phone-input-wrapper">
+                            <span class="country-code">+91</span>
+                            <input type="tel" id="phone-input" placeholder="Enter your 10-digit number" maxlength="10">
+                        </div>
+                        <button id="send-otp-btn" class="cta-btn primary w-100">Send OTP</button>
+                        <div id="phone-error" class="error-msg"></div>
+                    </div>
+                    
+                    <div id="verify-otp-step" class="hidden">
+                        <label>Verification Code</label>
+                        <p class="otp-instruction">Enter the 6-digit code sent to <span id="display-phone"></span></p>
+                        <input type="text" id="otp-input" placeholder="------" maxlength="6" class="otp-input" autocomplete="one-time-code">
+                        <button id="verify-otp-btn" class="cta-btn primary w-100">Verify & Login</button>
+                        <div id="verify-error" class="error-msg"></div>
+                        <button id="back-to-phone" class="text-btn">Change phone number</button>
+                    </div>
+                </div>
+
+                <!-- Google Auth Form -->
+                <div id="google-auth" class="auth-panel hidden">
+                    <p class="google-instruction">Quick and secure access using your Google account.</p>
+                    <button id="google-login-modal-btn" class="google-login-large curved-rect w-100">
+                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" width="20">
+                        Sign in with Google
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
-
 </html>

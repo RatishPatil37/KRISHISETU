@@ -47,9 +47,11 @@ function Profile() {
 
     try {
       const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000';
-      const response = await axios.get(`${BASE_URL}/api/users/profile/${authUser.email}`);
+      const response = await axios.get(`${BASE_URL}/api/users/profile?uid=${authUser.id}`);
       const data = response.data.user || response.data;
       
+      if (!data) throw new Error('User not found');
+
       setProfile(prev => ({ 
         ...prev, 
         ...data,
@@ -66,7 +68,8 @@ function Profile() {
       // If user doesn't exist in MongoDB, set basic info from auth
       setProfile(prev => ({
         ...prev,
-        email: authUser.email,
+        email: authUser.email || '',
+        phone: authUser.phone || '',
         name: authUser.user_metadata?.full_name || ''
       }));
       setIsLoading(false);
@@ -97,7 +100,8 @@ function Profile() {
 
     try {
       const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000';
-      const response = await axios.post(`${BASE_URL}/api/users/profile`, profile);
+      const payload = { ...profile, uid: authUser.id };
+      const response = await axios.post(`${BASE_URL}/api/users/profile`, payload);
       const data = response.data.user || response.data;
       setProfile(prev => ({ ...prev, ...data }));
       setIsEditing(false);
@@ -160,8 +164,11 @@ function Profile() {
             <button className="back-btn" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ArrowLeft size={16} /> Back to Schemes
             </button>
-            <h1>My Profile</h1>
-            <p className="profile-subtitle">Complete your details to unlock smart scheme recommendations.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '12px' }}>
+              <img src="/krishisetu_logo.png" alt="KrishiSetu Logo" style={{ height: '42px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }} />
+              <h1 style={{ margin: 0 }}>My Profile</h1>
+            </div>
+            <p className="profile-subtitle" style={{ marginTop: '8px' }}>Complete your details to unlock smart scheme recommendations.</p>
           </div>
 
           {message && (
@@ -172,9 +179,9 @@ function Profile() {
 
           <div className="profile-content">
             <form onSubmit={handleSubmit} className="profile-form custom-grid-form">
-              <div className="form-group full-width">
-                <label>Locked Email</label>
-                <input type="email" name="email" value={profile.email} disabled className="disabled-input input-field" />
+              <div className="form-group">
+                <label>Email Address</label>
+                <input type="email" name="email" value={profile.email || ''} onChange={handleInputChange} disabled={!!authUser.email || !isEditing} className={`input-field ${authUser.email ? 'disabled-input' : ''}`} placeholder="Optional email" />
               </div>
 
               <div className="form-group">
@@ -184,7 +191,7 @@ function Profile() {
 
               <div className="form-group">
                 <label>Phone Number *</label>
-                <input type="tel" name="phone" value={profile.phone || ''} onChange={handleInputChange} disabled={!isEditing} required className="input-field" placeholder="10-digit mobile" />
+                <input type="tel" name="phone" value={profile.phone || ''} onChange={handleInputChange} disabled={!!authUser.phone || !isEditing} required className={`input-field ${authUser.phone ? 'disabled-input' : ''}`} placeholder="10-digit mobile" />
               </div>
 
               <div className="form-group">

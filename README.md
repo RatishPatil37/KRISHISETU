@@ -1,4 +1,4 @@
-# 🏛️ LokSevaAI / KrishiSetu — MERN Platform
+# 🏛️ KrishiSetu — Multilingual AI Vernacular Assistant for Farmers
 
 > **Find every government scheme you deserve — in your language, instantly, with AI document processing.**
 

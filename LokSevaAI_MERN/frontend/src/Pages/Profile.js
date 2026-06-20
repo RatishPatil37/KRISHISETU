@@ -40,6 +40,7 @@ function Profile() {
     if (!authLoading && authUser) {
       fetchUserProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, authLoading, navigate]);
 
   const fetchUserProfile = async () => {

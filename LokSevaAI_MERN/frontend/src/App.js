@@ -7,13 +7,12 @@ import { useAuth } from './AuthContext';
 import { supabase } from './supabase';
 import Profile from "./Pages/Profile";
 import VapiChatAssistant from './components/VapiChatAssistant';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { 
   AlertTriangle, ShieldX, Activity, Settings, Type, CheckCircle, UploadCloud, FileText, 
-  Sun, Moon, MessageCircle, Smartphone, Download, Filter, Search, RefreshCcw, 
+  Sun, Moon, Download, Search, RefreshCcw, 
   ClipboardList, FileSearch, CalendarDays, IndianRupee, CircleHelp, CheckCircle2, 
-  Scale, Zap, Sparkles, Shield, Shuffle, MapPin, Home, User, ArrowRight, ArrowLeft, X,
-  Building2, Building, Sprout, Landmark, Mail, Inbox, Folder, BookOpen, Bot, Lightbulb, Flame, Newspaper, Database
+  Scale, Sparkles, Shield, MapPin, Home, User, ArrowRight,
+  Building2, Sprout, Inbox, Folder, BookOpen, Bot, Lightbulb, Flame, Newspaper, Database
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import LocationMap from './components/LocationMap';
@@ -381,7 +380,8 @@ function AuthCallback() {
 
     handleCallback();
     return () => { cancelled = true; };
-  }, []); // empty deps — run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkOnboardedStatus, BASE_URL, APP_URL]); // run once on mount only
 
   return (
     <div style={{
@@ -407,7 +407,7 @@ function AuthCallback() {
 
 function App() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !user && !window.location.pathname.includes('/auth/callback')) {
@@ -431,7 +431,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('browse');
 
   // New Feature States
-  const [whatsappStatus, setWhatsappStatus] = useState(null);
+  // const [whatsappStatus, setWhatsappStatus] = useState(null);
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -454,7 +454,7 @@ function App() {
   const [scanStep, setScanStep] = useState(0); // 0=idle,1=uploading,2=ocr,3=gemini,4=done
   const [syncStatus, setSyncStatus] = useState(''); // '' | 'syncing' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
-  const [eligibleSchemeNames, setEligibleSchemeNames] = useState([]);
+  const [, setEligibleSchemeNames] = useState([]);
   const [hardcodedSchemes, setHardcodedSchemes] = useState([]);
 
   const runOcr = async (file) => {
@@ -564,7 +564,7 @@ function App() {
         );
       }
     }
-  }, [activeTab]);
+  }, [activeTab, locationParams]);
 
   // Fetch user profile from MongoDB to sync filters and UI highlights
   useEffect(() => {
@@ -732,6 +732,7 @@ function App() {
 
   useEffect(() => {
     filterSchemes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemes, selectedCategory, selectedState, selectedIncome, searchQuery]);
 
   const filterSchemes = () => {

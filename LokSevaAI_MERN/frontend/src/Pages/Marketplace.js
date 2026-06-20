@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Marketplace.css';
-import { ShoppingBag, Plus, MapPin, Phone, MessageSquare, X } from 'lucide-react';
+import { Plus, MapPin, Phone, MessageSquare, X } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 
 const CATEGORIES = ['All', 'Crops', 'Seeds', 'Tools', 'Livestock', 'Fertilizers'];
@@ -39,6 +39,7 @@ const Marketplace = ({ isDarkMode, language, dictionary }) => {
   useEffect(() => {
     fetchProducts();
     fetchUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchUserProfile = async () => {

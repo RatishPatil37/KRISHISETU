@@ -1,4 +1,4 @@
-# 🏛️ LokSevaAI / KrishiSetu — Premium MERN Agritech Platform
+# 🏛️ LokSevaAI / KrishiSetu — MERN Platform
 
 > **Find every government scheme you deserve — in your language, instantly, with AI document processing and advanced farming diagnostics.**
 

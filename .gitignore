@@ -1,4 +1,8 @@
-# Python-generated files
+# ==============================================================
+# KrishiSetu — Root .gitignore
+# ==============================================================
+
+# ── Python ─────────────────────────────────────────────────────
 __pycache__/
 *.py[oc]
 build/
@@ -6,17 +10,57 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
+# ── Virtual environments ────────────────────────────────────────
 .venv
-node_modules
 .env
 .env.*
+*.env
+
+# ── Node / JS ───────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 *.log
 
-# Sensitive credentials
+# ── Sensitive credential files ──────────────────────────────────
 Creds.txt
 **/Creds.txt
+credentials.json
+**/credentials.json
+secrets.json
+**/secrets.json
+service-account*.json
+**/service-account*.json
+google-credentials*.json
+**/google-credentials*.json
 
-# Multer uploads and temporary directories
+# ── Temporary uploads (user-submitted documents) ────────────────
 uploads/
 **/uploads/
+
+# ── Build outputs ───────────────────────────────────────────────
+**/build/
+**/dist/
+
+# ── IDE / Editor folders ────────────────────────────────────────
+.vscode/
+.cursor/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# ── AI / Gemini agent folders ───────────────────────────────────
+.gemini/
+
+# ── Docker & deployment secrets ─────────────────────────────────
+docker-compose.override.yml
+
+# ── Python virtual envs (extra patterns) ───────────────────────
+venv/
+env/
+.Python

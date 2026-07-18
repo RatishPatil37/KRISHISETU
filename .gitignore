@@ -10,4 +10,13 @@ wheels/
 .venv
 node_modules
 .env
+.env.*
 *.log
+
+# Sensitive credentials
+Creds.txt
+**/Creds.txt
+
+# Multer uploads and temporary directories
+uploads/
+**/uploads/

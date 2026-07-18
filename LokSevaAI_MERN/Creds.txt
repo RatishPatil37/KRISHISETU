@@ -1,3 +1,0 @@
-MongoLink
-
-mongodb+srv://Atharva:<Chakravyuh>@chakravyuhtwilio.jqd9vn0.mongodb.net/?appName=ChakravyuhTwilio

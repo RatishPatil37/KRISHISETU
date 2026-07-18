@@ -431,7 +431,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('browse');
 
   // New Feature States
-  // const [whatsappStatus, setWhatsappStatus] = useState(null);
+  const [whatsappStatus] = useState(null);
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
